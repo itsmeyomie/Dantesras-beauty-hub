@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dantesras</string>
+    <string name="title_activity_main">Dantesras</string>
+    <string name="package_name">ke.dantesras.app</string>
+    <string name="custom_url_scheme">ke.dantesras.app</string>
+</resources>

@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dantesras – staff roles UI sample</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet" />
+<style>
+  :root { --maroon:#7b1e2e; --deep:#4a0f1b; --gold:#c9a227; --gold-soft:#f1d27a; --ink:#161214; --muted:#8a7f78; --cream:#faf6f0;
+    --glass:rgba(255,255,255,.66); --ring:conic-gradient(from 200deg,#7b1e2e,#c9a227,#e2a0ae,#7b1e2e); --ok:#1e6b34; --okbg:#e4f4e8; --warnbg:#fff4d6; --warn:#8a5a00; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Inter,system-ui,sans-serif; color:var(--ink); background:radial-gradient(60% 50% at 10% 5%,#f3dde2 0,transparent 60%),radial-gradient(50% 50% at 95% 95%,#f6ead0 0,transparent 60%),#f4efe9; padding:30px 20px 50px; }
+  section { margin:0 auto 46px; max-width:1180px; }
+  .role-h { display:flex; align-items:baseline; gap:14px; margin:0 0 6px 6px; }
+  .role-h h2 { font:600 26px 'Playfair Display'; margin:0; color:var(--maroon); }
+  .role-h p { margin:0; color:var(--muted); font-size:13px; }
+  .row { display:flex; gap:30px; flex-wrap:wrap; justify-content:center; }
+  .phone { width:340px; height:720px; border-radius:44px; position:relative; overflow:hidden; padding:16px 18px 0; flex:0 0 auto;
+    box-shadow:0 34px 70px rgba(74,15,27,.16),0 0 0 10px #fff,0 0 0 11px #eadfd6;
+    background:radial-gradient(70% 45% at 0% 100%,rgba(123,30,46,.22) 0,transparent 70%),radial-gradient(60% 40% at 100% 85%,rgba(201,162,39,.28) 0,transparent 70%),radial-gradient(80% 40% at 50% 0,#fff 0,transparent 70%),var(--cream); }
+  .cap { text-align:center; font:500 12px Inter; color:var(--muted); margin-top:12px; width:340px; }
+  .status { display:flex; justify-content:space-between; font:600 13px Inter; padding:0 8px 12px; }
+  .top { display:flex; justify-content:space-between; align-items:center; }
+  .av { width:48px; height:48px; border-radius:50%; padding:3px; background:var(--ring); flex:0 0 auto; }
+  .av i { width:100%; height:100%; border-radius:50%; display:grid; place-items:center; font:600 16px 'Playfair Display'; font-style:normal; color:#fff;
+    background:radial-gradient(circle at 50% 35%,#d9a3ae 0 22%,transparent 23%),radial-gradient(ellipse at 50% 100%,#d9a3ae 0 45%,transparent 46%),var(--deep); }
+  .av.sm { width:38px; height:38px; padding:2px; } .av.lg { width:84px; height:84px; padding:4px; }
+  .icons { display:flex; gap:8px; }
+  .ic { width:42px; height:42px; border-radius:50%; background:var(--glass); display:grid; place-items:center; position:relative; box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 4px 12px rgba(74,15,27,.08); font-size:16px; }
+  .badge { position:absolute; top:-3px; right:-3px; min-width:18px; height:18px; border-radius:9px; background:var(--maroon); color:var(--gold-soft); font:600 10px/18px Inter; text-align:center; padding:0 4px; }
+  .hey { font:italic 400 14px 'Playfair Display'; color:var(--muted); margin:14px 0 0; } .hey b { color:var(--maroon); }
+  .title { font:300 27px/1.06 Inter; text-transform:uppercase; margin:2px 0 0; } .title strong { font-weight:600; }
+  .oo { display:inline-block; width:46px; height:19px; border:2px solid var(--ink); border-radius:12px; vertical-align:-2px; margin:0 2px; }
+  .oo.t { border-color:var(--maroon); background:linear-gradient(90deg,rgba(123,30,46,.08),rgba(201,162,39,.28)); }
+  .chips { display:flex; gap:7px; margin:12px -18px 0 0; overflow:hidden; }
+  .chip { flex:0 0 auto; padding:9px 14px; border-radius:20px; font:500 12px Inter; background:var(--glass); box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 3px 10px rgba(74,15,27,.06); }
+  .chip.on { background:var(--ink); color:var(--gold-soft); }
+  .card { background:var(--glass); border-radius:22px; padding:12px 14px; margin-top:10px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 8px 24px rgba(74,15,27,.08); }
+  .k { font:600 10px Inter; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); }
+  .muted { color:var(--muted); } .s { font-size:12px; } .xs { font-size:11px; }
+  .flex { display:flex; align-items:center; gap:10px; } .sp { flex:1; }
+  .btn { padding:9px 14px; border-radius:18px; font:600 12px Inter; background:var(--ink); color:var(--gold-soft); white-space:nowrap; }
+  .btn.w { background:#fff; color:var(--ink); box-shadow:inset 0 0 0 1px #eee; } .btn.m { background:var(--maroon); color:#fff; } .btn.g { background:linear-gradient(180deg,#f1d27a,var(--gold)); color:#241a05; }
+  .btn.o { background:transparent; color:var(--maroon); box-shadow:inset 0 0 0 1.5px var(--maroon); } .btn.x { background:transparent; color:#9b1c1c; }
+  .pill { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:10px; font:600 10px Inter; }
+  .pill::before { content:''; width:5px; height:5px; border-radius:50%; background:currentColor; }
+  .p-ok { background:var(--okbg); color:var(--ok); } .p-w { background:var(--warnbg); color:var(--warn); } .p-b { background:#fbe4e4; color:#9b1c1c; } .p-i { background:#e6eefb; color:#24508f; }
+  .hero { margin-top:12px; border-radius:26px; padding:16px; color:#fff; position:relative; overflow:hidden;
+    background:radial-gradient(80% 70% at 80% 10%,#b24359 0,var(--maroon) 50%,var(--deep) 100%); box-shadow:0 16px 34px rgba(74,15,27,.25); }
+  .hero::after { content:''; position:absolute; right:-40px; top:-30px; width:170px; height:170px; border-radius:50%; border:1px solid rgba(241,210,122,.3); box-shadow:0 0 0 22px rgba(241,210,122,.05); }
+  .hero .big { font:600 22px 'Playfair Display'; margin:2px 0; } .hero .gold { color:var(--gold-soft); }
+  .nav { position:absolute; left:50%; bottom:16px; transform:translateX(-50%); display:flex; gap:4px; padding:6px; border-radius:32px; background:rgba(255,255,255,.75); box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 10px 28px rgba(74,15,27,.16); }
+  .nav span { width:48px; height:48px; border-radius:50%; display:grid; place-items:center; font-size:10px; font-weight:600; color:var(--ink); flex-direction:column; text-align:center; line-height:1.1; }
+  .nav span b { display:block; font-size:17px; font-weight:400; }
+  .nav .on { background:var(--ring); color:#fff; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; padding:14px 18px 22px; border-radius:28px 28px 0 0; background:var(--ink); color:#fff; display:flex; align-items:center; gap:12px; }
+  .sheet .d { font:600 18px 'Playfair Display'; } .sheet .t { font-size:11px; color:#b9aea6; margin-top:2px; }
+  .field { background:rgba(255,255,255,.85); border-radius:14px; padding:9px 12px; margin-top:8px; box-shadow:inset 0 0 0 1px #ece3d7; }
+  .field small { display:block; font:600 10px Inter; color:var(--muted); } .field div { font:500 13px Inter; margin-top:2px; }
+  .seg { display:grid; grid-auto-flow:column; background:rgba(255,255,255,.5); border-radius:16px; padding:4px; gap:4px; margin-top:12px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.9); }
+  .seg span { text-align:center; padding:9px 0; border-radius:12px; font:600 12px Inter; color:var(--muted); } .seg .on { background:var(--ink); color:var(--gold-soft); }
+  .flower { width:62px; height:62px; position:relative; display:grid; place-items:center; flex:0 0 auto; }
+  .flower::before { content:''; position:absolute; inset:0; background:var(--c,#7b1e2e); clip-path:path('M31 0 C38 0 41 6 46 9 C51 11 59 9 62 15 C65 22 59 27 61 32 C62 38 66 43 62 48 C58 55 51 52 46 56 C40 59 38 62 31 62 C24 62 22 59 16 56 C11 52 4 55 0 48 C-4 43 0 38 1 32 C3 27 -3 22 0 15 C3 9 11 11 16 9 C21 6 24 0 31 0 Z'); }
+  .flower i { position:relative; width:46px; height:46px; border-radius:50%; font-style:normal;
+    background:radial-gradient(circle at 50% 36%,#e7c3b3 0 20%,transparent 21%),radial-gradient(ellipse at 50% 100%,#e7c3b3 0 44%,transparent 45%),#f6ead0; }
+  .time { font:700 13px Inter; color:var(--maroon); width:44px; }
+  .tl { position:relative; padding-left:14px; } .tl::before { content:''; position:absolute; left:4px; top:6px; bottom:6px; width:2px; background:rgba(123,30,46,.15); }
+  .dot { position:absolute; left:0; width:10px; height:10px; border-radius:50%; background:var(--maroon); margin-top:5px; }
+  .bars { display:flex; align-items:flex-end; gap:8px; height:84px; margin-top:8px; }
+  .bars i { flex:1; border-radius:8px 8px 3px 3px; background:linear-gradient(180deg,#c9a227,#7b1e2e); } .bars i.l { background:#e7dcd2; }
+  .days { display:flex; justify-content:space-between; font:500 10px Inter; color:var(--muted); margin-top:4px; }
+  .cal { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; text-align:center; margin-top:6px; }
+  .cal b { font:500 10px Inter; color:var(--muted); padding-bottom:3px; }
+  .cal span { height:30px; border-radius:50%; display:grid; place-items:center; font:500 11px Inter; background:rgba(255,255,255,.85); position:relative; }
+  .cal span.x { background:transparent; color:#cfc4ba; } .cal span.sel { background:var(--ink); color:var(--gold-soft); } .cal span.td { background:var(--ring); color:#fff; }
+  .cal span em { position:absolute; top:-3px; right:-1px; min-width:13px; height:13px; border-radius:7px; background:var(--maroon); color:var(--gold-soft); font:700 8px/13px Inter; font-style:normal; }
+  .stat { flex:1; background:var(--glass); border-radius:18px; padding:10px 12px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 6px 16px rgba(74,15,27,.06); }
+  .stat small { display:block; font:600 10px Inter; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; } .stat b { font:600 17px 'Playfair Display'; display:block; margin-top:2px; }
+  .up { color:var(--ok); font-size:10px; font-weight:600; }
+  .line { display:flex; justify-content:space-between; font-size:12.5px; padding:5px 0; } .line.t { font-weight:700; border-top:1px solid #ece3d7; margin-top:4px; padding-top:8px; }
+  .mp { display:flex; align-items:center; gap:10px; padding:10px; border-radius:16px; background:#e8f5ec; margin-top:8px; }
+  .mp b { background:#1f8f3a; color:#fff; font:800 10px Inter; padding:6px 7px; border-radius:7px; letter-spacing:.05em; }
+  .upload { border:1.5px dashed var(--maroon); border-radius:18px; padding:12px; display:flex; align-items:center; gap:12px; margin-top:10px; background:rgba(255,255,255,.5); }
+  .legend { display:flex; gap:20px; justify-content:center; flex-wrap:wrap; font:500 12px Inter; color:var(--muted); margin:-26px 0 26px; }
+</style>
+</head>
+<body>
+
+<!-- ============ ACCOUNTS ============ -->
+<section>
+  <div class="role-h"><h2>Staff accounts</h2><p>Everyone creates their own account with email · the owner approves and gives the role</p></div>
+  <div class="row">
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="k">Dantesras · staff</div>
+        <h1 class="title" style="margin-top:6px">Create <strong>your account</strong></h1>
+        <div class="seg"><span>Sign in</span><span class="on">Create account</span></div>
+        <div class="upload"><div class="av lg" style="width:64px;height:64px"><i></i></div><div><b style="font-size:13px">Add your photo</b><div class="xs muted">Clients see it when they choose a stylist</div></div></div>
+        <div class="field"><small>Full name</small><div>Wanjiku Kamau</div></div>
+        <div class="field"><small>Email</small><div>wanjiku@gmail.com</div></div>
+        <div class="field"><small>Phone (M-Pesa)</small><div>0711 000 101</div></div>
+        <div class="field"><small>Password</small><div>••••••••</div></div>
+        <div class="k" style="margin-top:12px;color:var(--muted)">I work as</div>
+        <div class="chips" style="margin-top:6px"><span class="chip on">Stylist</span><span class="chip">Receptionist</span><span class="chip">Manager</span></div>
+        <div class="field"><small>Speciality (shown to clients)</small><div>Nails · gel & builder gel</div></div>
+        <div class="sheet"><div><div class="d">Request access</div><div class="t">The owner approves your account</div></div><span class="btn g" style="margin-left:auto;padding:13px 18px">Send</span></div>
+      </div>
+      <div class="cap">Create account · photo, email, role wanted, speciality</div>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div style="text-align:center;margin-top:70px"><div class="av lg" style="margin:0 auto"><i></i></div>
+          <h1 class="title" style="margin-top:18px">Waiting <strong>for approval</strong></h1>
+          <p class="muted s" style="margin:10px 20px">Thanks Wanjiku. The owner will check your request and give you access as <b style="color:var(--maroon)">Stylist</b>.</p>
+          <span class="pill p-w" style="margin-top:6px">Pending · sent today 09:12</span></div>
+        <div class="card" style="margin-top:26px"><div class="k">Meanwhile</div><div class="s" style="margin-top:6px">You can update your photo and speciality. You'll get access as soon as you're approved – just open the app again.</div></div>
+        <div class="card"><div class="flex"><div class="sp"><b class="s">Signing in at the salon</b><div class="xs muted">Staff accounts only open at Karuguru junction, Kamakis</div></div><span class="pill p-ok">On site</span></div></div>
+        <div style="position:absolute;bottom:34px;left:18px;right:18px;text-align:center"><span class="btn o" style="padding:12px 30px">Sign out</span></div>
+      </div>
+      <div class="cap">Pending screen · until the owner approves</div>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="ic">‹</div><div class="ic">⚙</div></div>
+        <h1 class="title" style="margin-top:12px">Staff <strong>requests</strong></h1>
+        <div class="chips"><span class="chip on">Waiting · 2</span><span class="chip">Approved · 9</span><span class="chip">Declined</span></div>
+        <div class="card"><div class="flex"><div class="flower" style="--c:#7b1e2e"><i></i></div><div class="sp"><b class="s">Wanjiku Kamau</b><div class="xs muted">wanjiku@gmail.com · 0711 000 101</div><div class="xs">Wants: <b>Stylist</b> · Nails</div></div></div>
+          <div class="k" style="margin-top:10px;color:var(--muted)">Give role</div>
+          <div class="chips" style="margin:6px 0 0"><span class="chip on">Stylist</span><span class="chip">Receptionist</span><span class="chip">Manager</span></div>
+          <div class="flex" style="margin-top:10px"><span class="btn x">Decline</span><span class="sp"></span><span class="btn m" style="padding:10px 22px">Approve</span></div></div>
+        <div class="card"><div class="flex"><div class="flower" style="--c:#c9a227"><i></i></div><div class="sp"><b class="s">Joy Atieno</b><div class="xs muted">joy.a@gmail.com · 0711 000 106</div><div class="xs">Wants: <b>Receptionist</b></div></div><span class="btn">Review</span></div></div>
+        <div class="card"><div class="flex"><div class="av sm"><i></i></div><div class="sp"><b class="s">Commission & PIN</b><div class="xs muted">Set commission % after approving, in Team</div></div><span class="muted">›</span></div></div>
+      </div>
+      <div class="cap">Owner · approve requests and choose the role</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STYLIST ============ -->
+<section>
+  <div class="role-h"><h2>Stylist</h2><p>My day · my calendar · walk-in queue · my earnings · my profile</p></div>
+  <div class="row">
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="av"><i></i></div><div class="icons"><div class="ic">⌕</div><div class="ic">🔔<span class="badge">2</span></div></div></div>
+        <p class="hey">Hey <b>Wanjiku</b>, you have 5 clients today</p>
+        <h1 class="title">My <span class="oo t"></span><strong> day</strong></h1>
+        <div class="hero"><div class="k" style="color:var(--gold-soft)">Next · in 25 min</div><div class="big">Grace Wanjiru</div>
+          <div class="s" style="opacity:.85">10:30 · Builder gel · KSh 1,200 · deposit paid</div>
+          <div class="flex" style="margin-top:12px"><span class="btn w" style="padding:10px 18px">Client arrived · start</span><span class="sp"></span><span class="pill p-ok" style="background:#fff">Booked</span></div></div>
+        <div class="flex" style="margin:14px 2px 0"><b style="font:600 15px 'Playfair Display'">Today</b><span class="sp"></span><span class="xs muted">5 jobs · 1 walk-in waiting</span></div>
+        <div class="card tl">
+          <div style="position:relative;padding:4px 0 8px"><span class="dot" style="background:var(--ok)"></span><div class="flex" style="margin-left:10px"><span class="time">08:30</span><div class="sp"><b class="s">Lucy Akinyi</b><div class="xs muted">Gel · done · KSh 500</div></div><span class="pill p-ok">Paid</span></div></div>
+          <div style="position:relative;padding:4px 0 8px"><span class="dot"></span><div class="flex" style="margin-left:10px"><span class="time">10:30</span><div class="sp"><b class="s">Grace Wanjiru</b><div class="xs muted">Builder gel</div></div><span class="pill p-i">Next</span></div></div>
+          <div style="position:relative;padding:4px 0 8px"><span class="dot" style="background:var(--gold)"></span><div class="flex" style="margin-left:10px"><span class="time">13:15</span><div class="sp"><b class="s">Mary Njoki</b><div class="xs muted">Home · Membley · transport KSh 300</div></div><span class="pill p-w">Home</span></div></div>
+          <div style="position:relative;padding:4px 0 0"><span class="dot" style="background:#cfc4ba"></span><div class="flex" style="margin-left:10px"><span class="time">Walk-in</span><div class="sp"><b class="s">Guest · waiting 6 min</b><div class="xs muted">Pedi gel</div></div><span class="btn" style="padding:7px 12px">Take</span></div></div>
+        </div>
+        <div class="nav"><span class="on"><b>⌂</b></span><span><b>▦</b></span><span><b>☰</b></span><span><b>◔</b></span><span><b>☺</b></span></div>
+      </div>
+      <div class="cap">My day · next client, timeline, take a walk-in</div>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="av"><i></i></div><div class="icons"><div class="ic">+</div></div></div>
+        <h1 class="title" style="margin-top:12px"><strong>My</strong> calendar</h1>
+        <div class="card">
+          <div class="flex"><b style="font:600 14px 'Playfair Display'">November 2026</b><span class="sp"></span><span class="xs muted">‹ ›</span></div>
+          <div class="cal"><b>M</b><b>T</b><b>W</b><b>T</b><b>F</b><b>S</b><b>S</b>
+            <span class="x"></span><span class="x"></span><span class="x"></span><span class="x"></span><span class="x"></span><span class="x"></span><span class="x">1</span>
+            <span class="x">2</span><span class="x">3</span><span class="x">4</span><span class="x">5</span><span class="x">6</span><span class="x">7</span><span class="x">8</span>
+            <span class="x">9</span><span class="x">10</span><span class="x">11</span><span class="x">12</span><span class="x">13</span><span class="x">14</span><span class="x">15</span>
+            <span class="x">16</span><span class="x">17</span><span class="x">18</span><span class="x">19</span><span class="x">20</span><span class="x">21</span><span class="td">22<em>5</em></span>
+            <span>23<em>3</em></span><span class="sel">24<em>4</em></span><span>25<em>2</em></span><span>26</span><span>27<em>1</em></span><span>28<em>6</em></span><span>29</span>
+            <span>30</span></div></div>
+        <div class="flex" style="margin:12px 2px 0"><b style="font:600 15px 'Playfair Display'">Tue 24 Nov</b><span class="sp"></span><span class="xs muted">4 bookings</span></div>
+        <div class="card"><div class="flex"><span class="time">09:00</span><div class="sp"><b class="s">Amina Hassan</b><div class="xs muted">Tips gel – Arted</div></div><span class="pill p-ok">Booked</span></div></div>
+        <div class="card"><div class="flex"><span class="time">11:20</span><div class="sp"><b class="s">Online request</b><div class="xs muted">Gel · asked for you</div></div><span class="pill p-w">To confirm</span></div></div>
+        <div class="card"><div class="flex"><span class="time">15:00</span><div class="sp"><b class="s">Rose Wairimu</b><div class="xs muted">Refill · no deposit yet</div></div><span class="pill p-w">Pending</span></div></div>
+        <div class="nav"><span><b>⌂</b></span><span class="on"><b>▦</b></span><span><b>☰</b></span><span><b>◔</b></span><span><b>☺</b></span></div>
+      </div>
+      <div class="cap">My calendar · my bookings per day, requests for me</div>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="ic">‹</div><div class="ic">⤓</div></div>
+        <h1 class="title" style="margin-top:12px">My <strong>earnings</strong></h1>
+        <div class="chips"><span class="chip">Today</span><span class="chip on">This week</span><span class="chip">This month</span></div>
+        <div class="hero"><div class="k" style="color:var(--gold-soft)">Commission this week</div><div class="big gold" style="font-size:30px">KSh 6,840</div>
+          <div class="s" style="opacity:.85">23 clients · KSh 27,360 in services</div>
+          <div class="flex" style="margin-top:12px"><div class="sp"><div class="xs" style="opacity:.75">Unpaid balance</div><b style="font:600 16px 'Playfair Display'">KSh 4,340</b></div><span class="btn w">Weekly payout · Fri</span></div></div>
+        <div class="card"><div class="k">Last 7 days</div><div class="bars"><i style="height:40%"></i><i style="height:70%"></i><i style="height:55%"></i><i style="height:90%"></i><i style="height:65%"></i><i style="height:80%"></i><i class="l" style="height:30%"></i></div>
+          <div class="days"><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span><span>Mon</span><span>Tue</span><span>Today</span></div></div>
+        <div class="card"><div class="line"><span>Commission</span><b>KSh 6,840</b></div><div class="line"><span>Transport (home jobs)</span><b>KSh 600</b></div><div class="line"><span>Paid out (advance Tue)</span><b>− KSh 3,100</b></div><div class="line t"><span>Still to be paid</span><span style="color:var(--maroon)">KSh 4,340</span></div></div>
+        <div class="nav"><span><b>⌂</b></span><span><b>▦</b></span><span><b>☰</b></span><span class="on"><b>◔</b></span><span><b>☺</b></span></div>
+      </div>
+      <div class="cap">My earnings · commission, transport, payouts, balance</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MANAGER ============ -->
+<section>
+  <div class="role-h"><h2>Manager <span style="font-size:14px;color:var(--muted)">(owner sees the same + approvals & settings)</span></h2><p>Dashboard · bookings · team · reports</p></div>
+  <div class="row">
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="av"><i></i></div><div class="icons"><div class="ic">⌕</div><div class="ic">🔔<span class="badge">4</span></div></div></div>
+        <p class="hey">Good morning <b>Dantesras</b>,</p>
+        <h1 class="title">Today at <strong>the salon</strong></h1>
+        <div class="hero"><div class="k" style="color:var(--gold-soft)">Sales today</div><div class="big gold" style="font-size:30px">KSh 18,450</div>
+          <div class="s" style="opacity:.85">▲ KSh 2,100 vs yesterday · 14 clients · avg KSh 1,318</div>
+          <div class="flex" style="margin-top:10px;gap:6px"><span class="pill" style="background:rgba(255,255,255,.16);color:#fff">M-Pesa 12,900</span><span class="pill" style="background:rgba(255,255,255,.16);color:#fff">Cash 5,550</span></div></div>
+        <div class="flex" style="margin-top:10px;gap:8px"><div class="stat"><small>Waiting</small><b>3</b></div><div class="stat"><small>In chair</small><b>5</b></div><div class="stat"><small>Requests</small><b style="color:var(--maroon)">2</b></div></div>
+        <div class="card"><div class="k">Needs you</div>
+          <div class="line"><span>2 online requests to answer</span><span class="btn" style="padding:6px 11px">Open</span></div>
+          <div class="line"><span>Owner: 2 staff requests</span><span class="btn" style="padding:6px 11px">Review</span></div>
+          <div class="line"><span>Low stock: Gel top coat (2)</span><span class="muted">›</span></div></div>
+        <div class="nav"><span class="on"><b>⌂</b></span><span><b>▦</b></span><span><b>☺</b></span><span><b>◔</b></span><span><b>⋯</b></span></div>
+      </div>
+      <div class="cap">Dashboard · takings, live floor, things to act on</div>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="ic">‹</div><div class="ic">+</div></div>
+        <h1 class="title" style="margin-top:12px">The <strong>team</strong></h1>
+        <div class="chips"><span class="chip on">On duty · 7</span><span class="chip">All · 10</span><span class="chip">Commission</span></div>
+        <div class="card"><div class="flex"><div class="flower" style="--c:#7b1e2e"><i></i></div><div class="sp"><b class="s">Wanjiku Kamau</b><div class="xs muted">Stylist · Nails · 40%</div><div class="xs">With client · Grace W.</div></div><div style="text-align:right"><b style="font:600 14px 'Playfair Display'">KSh 4,200</b><div class="xs muted">today</div></div></div></div>
+        <div class="card"><div class="flex"><div class="flower" style="--c:#c9a227"><i></i></div><div class="sp"><b class="s">Achieng Otieno</b><div class="xs muted">Stylist · Braids · 35%</div><div class="xs"><span class="pill p-ok">Free</span></div></div><div style="text-align:right"><b style="font:600 14px 'Playfair Display'">KSh 3,600</b><div class="xs muted">today</div></div></div></div>
+        <div class="card"><div class="flex"><div class="flower" style="--c:#b4545f"><i></i></div><div class="sp"><b class="s">Joy Atieno</b><div class="xs muted">Receptionist</div><div class="xs"><span class="pill p-i">At the desk</span></div></div><span class="muted">›</span></div></div>
+        <div class="card"><div class="flex"><div class="flower" style="--c:#8a6a12"><i></i></div><div class="sp"><b class="s">Mercy Njeri</b><div class="xs muted">Stylist · Locs · tutor · 40%</div><div class="xs"><span class="pill p-w">Home service</span></div></div><span class="muted">›</span></div></div>
+        <div class="nav"><span><b>⌂</b></span><span><b>▦</b></span><span class="on"><b>☺</b></span><span><b>◔</b></span><span><b>⋯</b></span></div>
+      </div>
+      <div class="cap">Team · who's busy, commission, takings per person</div>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="ic">‹</div><div class="ic">⤓</div></div>
+        <h1 class="title" style="margin-top:12px"><strong>Reports</strong></h1>
+        <div class="chips"><span class="chip">Today</span><span class="chip on">This week</span><span class="chip">Month</span><span class="chip">Custom</span></div>
+        <div class="flex" style="margin-top:10px;gap:8px"><div class="stat"><small>Sales</small><b>KSh 112k</b><span class="up">▲ 8%</span></div><div class="stat"><small>Clients</small><b>86</b><span class="up">▲ 5</span></div><div class="stat"><small>Debts</small><b style="color:var(--maroon)">9.4k</b></div></div>
+        <div class="card"><div class="k">Sales per day</div><div class="bars"><i style="height:50%"></i><i style="height:62%"></i><i style="height:95%"></i><i style="height:70%"></i><i style="height:58%"></i><i style="height:84%"></i><i style="height:66%"></i></div>
+          <div class="days"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div></div>
+        <div class="card"><div class="k">Top stylists</div>
+          <div class="flex" style="margin-top:6px"><div class="av sm"><i></i></div><b class="s sp">Wanjiku Kamau</b><b class="s">KSh 27.4k</b></div>
+          <div class="flex" style="margin-top:6px"><div class="av sm"><i></i></div><b class="s sp">Achieng Otieno</b><b class="s">KSh 22.1k</b></div>
+          <div class="flex" style="margin-top:6px"><div class="av sm"><i></i></div><b class="s sp">Faith Wambui</b><b class="s">KSh 18.9k</b></div></div>
+        <div class="nav"><span><b>⌂</b></span><span><b>▦</b></span><span><b>☺</b></span><span class="on"><b>◔</b></span><span><b>⋯</b></span></div>
+      </div>
+      <div class="cap">Reports · sales, clients, debts, top stylists</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RECEPTIONIST ============ -->
+<section>
+  <div class="role-h"><h2>Receptionist</h2><p>Front desk · bookings & requests · checkout · clients & school fees</p></div>
+  <div class="row">
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="av"><i></i></div><div class="icons"><div class="ic">⌕</div><div class="ic">🔔<span class="badge">2</span></div></div></div>
+        <p class="hey">Hey <b>Joy</b>,</p>
+        <h1 class="title">Front <strong>desk</strong></h1>
+        <div class="flex" style="margin-top:10px;gap:8px"><span class="btn g" style="flex:1;text-align:center;padding:12px 0">+ Walk-in</span><span class="btn" style="flex:1;text-align:center;padding:12px 0">+ Booking</span><span class="btn w" style="flex:1;text-align:center;padding:12px 0">Checkout</span></div>
+        <div class="card"><div class="flex"><div class="k sp">Online requests · 2</div><span class="xs muted">answer first</span></div>
+          <div class="flex" style="margin-top:8px"><div class="av sm"><i></i></div><div class="sp"><b class="s">Rose Wairimu</b><div class="xs muted">Tue 24 · 15:00 · Refill · paid KSh 500</div></div></div>
+          <div class="flex" style="margin-top:8px"><span class="btn x" style="padding:7px 10px">Decline</span><span class="btn o" style="padding:7px 10px">Change time</span><span class="sp"></span><span class="btn m">Confirm</span></div></div>
+        <div class="card"><div class="flex"><div class="k sp">Walk-in queue · 3</div></div>
+          <div class="line"><span>#1 Guest · Pedi gel · 6 min</span><span class="pill p-w">Waiting</span></div>
+          <div class="line"><span>#2 Fiona A. · Boho · 12 min</span><span class="pill p-i">With Achieng</span></div></div>
+        <div class="nav"><span class="on"><b>⌂</b></span><span><b>▦</b></span><span><b>₭</b></span><span><b>☺</b></span><span><b>⋯</b></span></div>
+      </div>
+      <div class="cap">Front desk · quick actions, requests, queue</div>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="ic">‹</div><div class="ic">⋯</div></div>
+        <h1 class="title" style="margin-top:12px"><strong>Checkout</strong></h1>
+        <div class="card"><div class="flex"><div class="av sm"><i></i></div><div class="sp"><b class="s">Grace Wanjiru</b><div class="xs muted">with Wanjiku Kamau · booking 10:30</div></div><span class="pill p-ok">Deposit 500</span></div></div>
+        <div class="card"><div class="line"><span>Builder gel</span><b>KSh 1,200</b></div><div class="line"><span>Nail art (add-on)</span><b>KSh 300</b></div><div class="line"><span class="muted">Deposit paid</span><span class="muted">− KSh 500</span></div><div class="line t"><span>To pay now</span><span style="color:var(--maroon)">KSh 1,000</span></div></div>
+        <div class="k" style="margin:12px 2px 0;color:var(--muted)">Payment</div>
+        <div class="chips" style="margin-top:6px"><span class="chip on">M-Pesa prompt</span><span class="chip">Till code</span><span class="chip">Cash</span><span class="chip">Split</span></div>
+        <div class="mp"><b>M-PESA</b><div class="sp"><strong class="s">0722 100 001</strong><div class="xs muted">Prompt for KSh 1,000 to client's phone</div></div></div>
+        <div class="sheet"><div><div class="d">KSh 1,000</div><div class="t">Grace · Builder gel + art</div></div><span class="btn g" style="margin-left:auto;padding:13px 18px">Send prompt</span></div>
+      </div>
+      <div class="cap">Checkout · bill, deposit applied, M-Pesa prompt</div>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="ic">‹</div><div class="ic">+</div></div>
+        <h1 class="title" style="margin-top:12px"><strong>Clients</strong> & fees</h1>
+        <div class="field" style="margin-top:12px"><div class="muted">⌕  Search name or phone</div></div>
+        <div class="chips"><span class="chip on">Clients</span><span class="chip">Owing · 6</span><span class="chip">Students</span><span class="chip">Applications · 1</span></div>
+        <div class="card"><div class="flex"><div class="av sm"><i></i></div><div class="sp"><b class="s">Grace Wanjiru</b><div class="xs muted">0722 100 001 · 14 visits · last 2 weeks ago</div></div><span class="muted">›</span></div></div>
+        <div class="card"><div class="flex"><div class="av sm"><i></i></div><div class="sp"><b class="s">Lucy Akinyi</b><div class="xs muted">0722 100 002 · owes KSh 1,200 (9 days)</div></div><span class="btn m" style="padding:7px 12px">Collect</span></div></div>
+        <div class="card"><div class="flex"><div class="av sm"><i></i></div><div class="sp"><b class="s">Lydia Chelangat</b><div class="xs muted">Student · Hairdressing · balance KSh 16,000</div></div><span class="btn" style="padding:7px 12px">Fee</span></div></div>
+        <div class="card"><div class="flex"><div class="av sm"><i></i></div><div class="sp"><b class="s">New: Brenda Moraa</b><div class="xs muted">Applied · Make-up · start 1 Dec</div></div><span class="btn g" style="padding:7px 12px">Answer</span></div></div>
+        <div class="nav"><span><b>⌂</b></span><span><b>▦</b></span><span><b>₭</b></span><span class="on"><b>☺</b></span><span><b>⋯</b></span></div>
+      </div>
+      <div class="cap">Clients & fees · search, debts, students, applications</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OWNER ============ -->
+<style>
+  .grid9 { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
+  .tile { background:var(--glass); border-radius:16px; padding:8px 6px; text-align:center; box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 6px 16px rgba(74,15,27,.06); position:relative; }
+  .tile i { width:30px; height:30px; margin:0 auto 4px; border-radius:12px; display:grid; place-items:center; font-style:normal; font-size:16px; background:#f6ecee; color:var(--maroon); }
+  .tile b { display:block; font:600 11px Inter; } .tile small { font:400 9.5px Inter; color:var(--muted); }
+  .tile.hot i { background:var(--ink); color:var(--gold-soft); }
+  .tile .badge { top:6px; right:8px; }
+  .desk { width:1120px; height:640px; border-radius:22px; overflow:hidden; display:flex; box-shadow:0 34px 70px rgba(74,15,27,.16),0 0 0 8px #fff,0 0 0 9px #eadfd6;
+    background:radial-gradient(50% 50% at 0% 100%,rgba(123,30,46,.16) 0,transparent 70%),radial-gradient(40% 40% at 100% 90%,rgba(201,162,39,.2) 0,transparent 70%),var(--cream); }
+  .side { width:230px; padding:20px 14px; background:rgba(255,255,255,.55); box-shadow:inset -1px 0 0 rgba(123,30,46,.08); }
+  .side .brand { font:700 20px 'Playfair Display'; letter-spacing:.14em; color:var(--maroon); }
+  .side .tag { font:500 10px Inter; color:var(--muted); margin-bottom:14px; }
+  .side .grp { font:600 9.5px Inter; letter-spacing:.12em; text-transform:uppercase; color:var(--gold); margin:12px 8px 4px; }
+  .side .it { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:14px; font:500 12.5px Inter; }
+  .side .it.on { background:var(--ink); color:var(--gold-soft); }
+  .side .it em { margin-left:auto; font-style:normal; background:var(--maroon); color:var(--gold-soft); font:700 9px/16px Inter; min-width:16px; text-align:center; border-radius:8px; padding:0 4px; }
+  .main { flex:1; padding:20px 26px; overflow:hidden; }
+  .bk { background:var(--glass); border-radius:22px; padding:14px 16px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 8px 24px rgba(74,15,27,.08); margin-bottom:10px; }
+  .acts { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+</style>
+<section>
+  <div class="role-h"><h2>Owner</h2><p>Everything in today's web app, in the new design · plus staff requests, settings and M-Pesa checks · phone and computer</p></div>
+  <div class="row">
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="av"><i></i></div><div class="icons"><div class="ic">⌕</div><div class="ic">🔔<span class="badge">6</span></div></div></div>
+        <p class="hey">Good morning <b>Dantesras</b>,</p>
+        <h1 class="title">Your <strong>business</strong></h1>
+        <div class="chips"><span class="chip on">Salon</span><span class="chip">School</span><span class="chip">Today</span><span class="chip">Week</span></div>
+        <div class="hero"><div class="k" style="color:var(--gold-soft)">Money in today</div><div class="big gold" style="font-size:30px">KSh 21,650</div>
+          <div class="s" style="opacity:.85">Salon 18,450 · School fees 3,200 · ▲ 13%</div>
+          <div class="flex" style="margin-top:10px;gap:6px"><span class="pill" style="background:rgba(255,255,255,.16);color:#fff">Commission 6,120</span><span class="pill" style="background:rgba(255,255,255,.16);color:#fff">Debts 9.4k</span></div></div>
+        <div class="card"><div class="k">Needs the owner</div>
+          <div class="line"><span>2 staff account requests</span><span class="btn" style="padding:6px 11px">Approve</span></div>
+          <div class="line"><span>4 online booking requests</span><span class="btn w" style="padding:6px 11px">Open</span></div>
+          <div class="line"><span>M-Pesa check: 1 payment unmatched</span><span class="btn w" style="padding:6px 11px">Check</span></div>
+          <div class="line"><span>Discount above 10% waiting</span><span class="btn w" style="padding:6px 11px">Review</span></div></div>
+        <div class="nav"><span class="on"><b>⌂</b></span><span><b>▦</b></span><span><b>₭</b></span><span><b>☺</b></span><span><b>⋯</b></span></div>
+      </div>
+      <div class="cap">Owner home · salon + school money, things only the owner can do</div>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="av"><i></i></div><div class="icons"><div class="ic">⌕</div></div></div>
+        <h1 class="title" style="margin-top:12px">Everything <strong>else</strong></h1>
+        <div class="k" style="margin-top:10px">Salon</div>
+        <div class="grid9">
+          <div class="tile"><i>▦</i><b>Bookings</b><small>& walk-ins</small></div>
+          <div class="tile hot"><span class="badge">4</span><i>✉</i><b>Online</b><small>requests</small></div>
+          <div class="tile"><i>₭</i><b>Checkout</b><small>quick sale</small></div>
+          <div class="tile"><i>≡</i><b>Sales</b><small>void, history</small></div>
+          <div class="tile"><i>☺</i><b>Clients</b><small>& history</small></div>
+          <div class="tile"><i>◐</i><b>Debts</b><small>9.4k owed</small></div>
+          <div class="tile"><i>✂</i><b>Service menu</b><small>prices</small></div>
+          <div class="tile"><i>▤</i><b>Products</b><small>& stock</small></div>
+          <div class="tile"><i>✦</i><b>Team</b><small>commission</small></div>
+        </div>
+        <div class="k" style="margin-top:12px">School & owner</div>
+        <div class="grid9">
+          <div class="tile"><i>🎓</i><b>Students</b><small>& fees</small></div>
+          <div class="tile hot"><span class="badge">2</span><i>✓</i><b>Staff</b><small>requests</small></div>
+          <div class="tile"><i>◔</i><b>Reports</b><small>all</small></div>
+          <div class="tile"><i>Ⓜ</i><b>M-Pesa</b><small>check codes</small></div>
+          <div class="tile"><i>⚙</i><b>Settings</b><small>rules, hours</small></div>
+          <div class="tile"><i>⇄</i><b>Client app</b><small>preview</small></div>
+        </div>
+        <div class="nav"><span><b>⌂</b></span><span><b>▦</b></span><span><b>₭</b></span><span><b>☺</b></span><span class="on"><b>⋯</b></span></div>
+      </div>
+      <div class="cap">More · every module of the web app, one tap away</div>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="top"><div class="ic">‹</div><div class="ic">+</div></div>
+        <h1 class="title" style="margin-top:12px">Bo<span class="oo"></span>k<strong>ings</strong></h1>
+        <div class="seg"><span class="on">Bookings</span><span>Walk-ins · 3</span><span>Online · 4</span></div>
+        <div class="flex" style="margin-top:10px;gap:6px;overflow:hidden">
+          <span class="chip" style="padding:8px 11px">Mon 23</span><span class="chip" style="padding:8px 11px">Tue 24</span><span class="chip on" style="padding:8px 11px">Wed 25</span><span class="chip" style="padding:8px 11px">Thu 26</span><span class="chip" style="padding:8px 11px">▦</span></div>
+        <div class="card"><div class="flex"><span class="time">16:15</span><div class="sp"><b class="s">Amani Hamisi</b><div class="xs muted">Builder gel · KSh 1,200 · with Joy</div></div><span class="pill p-w">Requested</span></div>
+          <div class="xs" style="margin-top:6px">Paid upfront <b>KSh 500</b> · online</div>
+          <div class="flex" style="margin-top:8px;gap:6px;flex-wrap:wrap"><span class="btn m" style="padding:7px 11px">Confirm</span><span class="btn w" style="padding:7px 11px">+ Payment</span><span class="btn w" style="padding:7px 11px">Start</span><span class="btn" style="padding:7px 11px">Checkout</span></div>
+          <div class="flex" style="margin-top:6px;gap:12px"><span class="xs" style="color:var(--maroon);font-weight:600">Reschedule</span><span class="xs" style="color:#9b1c1c;font-weight:600">No-show</span><span class="xs muted" style="font-weight:600">Cancel</span></div></div>
+        <div class="card"><div class="flex"><span class="time">17:00</span><div class="sp"><b class="s">Rose Wairimu</b><div class="xs muted">Refill · with Wanjiku · no deposit</div></div><span class="pill p-w">Pending</span></div></div>
+        <div class="card"><div class="flex"><span class="time">18:30</span><div class="sp"><b class="s">Mary Njoki</b><div class="xs muted">Home · Membley · 2 stylists</div></div><span class="pill p-ok">Booked</span></div></div>
+        <div class="nav"><span><b>⌂</b></span><span class="on"><b>▦</b></span><span><b>₭</b></span><span><b>☺</b></span><span><b>⋯</b></span></div>
+      </div>
+      <div class="cap">Bookings · same actions as today: payment, start, checkout, reschedule, no-show, cancel</div>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:center;margin-top:34px">
+    <div>
+      <div class="desk">
+        <div class="side">
+          <div class="brand">DANTESRAS</div><div class="tag">Beauty Hub · Hair and Beauty School</div>
+          <div class="flex" style="margin:0 6px 6px"><div class="av sm"><i></i></div><div><b class="s">Owner</b><div class="xs muted">All access</div></div></div>
+          <div class="grp">Salon</div>
+          <div class="it">⌂ Dashboard</div><div class="it on">▦ Bookings & queue <em>4</em></div><div class="it">₭ Checkout</div><div class="it">≡ Sales</div>
+          <div class="it">☺ Clients</div><div class="it">◐ Debts</div><div class="it">✂ Service menu</div><div class="it">▤ Products</div><div class="it">✦ Team & commission</div>
+          <div class="grp">School</div><div class="it">🎓 Students & fees</div>
+          <div class="grp">Owner</div><div class="it">✓ Staff requests <em>2</em></div><div class="it">◔ Reports</div><div class="it">⚙ Settings</div>
+        </div>
+        <div class="main">
+          <div class="flex"><h1 class="title" style="margin:0;font-size:26px">Bo<span class="oo"></span>k<strong>ings & queue</strong></h1><span class="sp"></span><span class="btn w">Walk-in</span><span class="btn g">+ New booking</span></div>
+          <div class="seg" style="max-width:420px"><span class="on">Bookings</span><span>Walk-ins · 3</span><span>Online · 4</span></div>
+          <div style="display:flex;gap:18px;margin-top:14px">
+            <div style="width:320px" class="card">
+              <div class="flex"><b style="font:600 15px 'Playfair Display'">November 2026</b><span class="sp"></span><span class="ic" style="width:30px;height:30px">‹</span><span class="ic" style="width:30px;height:30px">›</span></div>
+              <div class="cal"><b>M</b><b>T</b><b>W</b><b>T</b><b>F</b><b>S</b><b>S</b>
+                <span class="x"></span><span class="x"></span><span class="x"></span><span class="x"></span><span class="x"></span><span class="x"></span><span>1<em>6</em></span>
+                <span>2<em>5</em></span><span>3<em>8</em></span><span>4<em>6</em></span><span>5<em>5</em></span><span>6<em>6</em></span><span>7<em>9</em></span><span>8<em>4</em></span>
+                <span>9<em>5</em></span><span>10<em>5</em></span><span>11<em>6</em></span><span>12<em>7</em></span><span>13<em>5</em></span><span>14<em>11</em></span><span>15<em>7</em></span>
+                <span>16<em>6</em></span><span>17<em>8</em></span><span>18<em>6</em></span><span>19<em>7</em></span><span>20<em>4</em></span><span>21<em>5</em></span><span class="td">22<em>5</em></span>
+                <span>23<em>3</em></span><span>24<em>2</em></span><span class="sel">25<em>1</em></span><span>26</span><span>27</span><span>28</span><span>29</span>
+                <span>30</span></div>
+              <div class="xs muted" style="margin-top:8px">Number = bookings that day</div>
+            </div>
+            <div style="flex:1">
+              <div class="flex" style="margin-bottom:8px"><b style="font:600 17px 'Playfair Display'">Wednesday 25 Nov</b><span class="sp"></span><span class="xs muted">Open 08:00–20:00</span></div>
+              <div class="bk"><div class="flex"><span class="time" style="font-size:16px;width:60px">16:15</span><span class="pill p-i">Salon</span><span class="pill p-w">Requested</span><span class="sp"></span><span class="xs muted">Online</span></div>
+                <div style="margin-top:6px"><b>Amani Hamisi</b> <span class="muted s">0715 976 338</span></div>
+                <div class="s">Builder gel · <b>KSh 1,200</b> · with Joy Atieno · 120 min · paid upfront <b>KSh 500</b></div>
+                <div class="acts"><span class="btn m">Confirm</span><span class="btn w">+ Payment</span><span class="btn w">Arrived / start</span><span class="btn">Checkout</span><span class="btn o">Reschedule / edit</span><span class="btn x">No-show</span><span class="btn x" style="color:var(--muted)">Cancel</span></div></div>
+              <div class="bk"><div class="flex"><span class="time" style="font-size:16px;width:60px">17:00</span><span class="pill p-i">Salon</span><span class="pill p-w">Pending</span></div>
+                <div style="margin-top:6px"><b>Rose Wairimu</b> <span class="muted s">0722 100 044</span></div><div class="s">Refill · with Wanjiku Kamau · no deposit yet</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cap" style="width:1120px">Owner on a computer · same functions as today's web app, new look (cream glass sidebar instead of black, pills, calendar bubbles)</div>
+    </div>
+  </div>
+</section>
+</body>
+</html>

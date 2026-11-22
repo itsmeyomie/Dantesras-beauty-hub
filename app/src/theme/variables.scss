@@ -1,0 +1,42 @@
+// Dantesras brand: maroon, black and gold.
+:root {
+  --ion-color-primary: #7b1e2e;            // maroon
+  --ion-color-primary-rgb: 123, 30, 46;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #6c1a28;
+  --ion-color-primary-tint: #883543;
+
+  --ion-color-secondary: #c9a227;          // gold
+  --ion-color-secondary-rgb: 201, 162, 39;
+  --ion-color-secondary-contrast: #1a1a1a;
+  --ion-color-secondary-contrast-rgb: 26, 26, 26;
+  --ion-color-secondary-shade: #b18f22;
+  --ion-color-secondary-tint: #ceab3d;
+
+  --ion-color-dark: #141414;               // black
+  --ion-color-dark-rgb: 20, 20, 20;
+  --ion-color-dark-contrast: #f1d27a;
+  --ion-color-dark-contrast-rgb: 241, 210, 122;
+  --ion-color-dark-shade: #000000;
+  --ion-color-dark-tint: #2c2c2c;
+
+  --ion-color-success: #2e7d32;
+  --ion-color-warning: #b26a00;
+  --ion-color-danger: #c62828;
+
+  --ion-font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+  --ion-background-color: #faf7f2;
+  --ion-text-color: #1c1c1c;
+  --ion-toolbar-background: #141414;
+  --ion-toolbar-color: #f1d27a;
+  --ion-item-background: #ffffff;
+
+  --app-gold: #c9a227;
+  --app-gold-light: #f1d27a;
+  --app-maroon: #7b1e2e;
+  --app-card-bg: #ffffff;
+  --app-field-bg: #f3eee6;
+  --app-muted: #6b6259;
+  --app-border: #e7dfd3;
+}

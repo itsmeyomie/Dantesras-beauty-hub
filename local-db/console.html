@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dantesras DB Console</title>
+<style>
+  :root { --maroon:#7b1e2e; --gold:#c9a227; --black:#141414; --bg:#faf7f2; --line:#e7dfd3; --muted:#6b6259; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin:0; font-family: 'Segoe UI', Roboto, system-ui, sans-serif; background: var(--bg); color:#1c1c1c; display:flex; height:100vh; }
+  aside { width: 240px; background: var(--black); color:#e8e2d6; overflow:auto; flex-shrink:0; }
+  aside h1 { font-family: Georgia, serif; color:#e2bd4f; letter-spacing:.1em; font-size:1.2rem; margin:16px; }
+  aside .sec { color:#8d8478; font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; margin:14px 16px 4px; }
+  aside button { display:block; width:calc(100% - 16px); margin:1px 8px; text-align:left; background:none; border:0; color:inherit; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:.88rem; }
+  aside button:hover { background:#2c2c2c; } aside button.on { background: var(--maroon); color:#fff; }
+  main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .bar { display:flex; gap:8px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); background:#fff; flex-wrap:wrap; }
+  .bar h2 { margin:0; font-size:1.05rem; color: var(--maroon); }
+  textarea { width:100%; height:110px; font-family: Consolas, monospace; font-size:.88rem; padding:8px; border:1px solid var(--line); border-radius:8px; }
+  .btn { background: var(--maroon); color:#fff; border:0; border-radius:6px; padding:7px 14px; cursor:pointer; font-size:.85rem; }
+  .btn.ghost { background:#fff; color: var(--maroon); border:1px solid var(--maroon); }
+  .btn.danger { background:#fff; color:#b3261e; border:1px solid #e3a0a0; padding:3px 8px; }
+  .btn.small { padding:3px 8px; font-size:.78rem; }
+  .wrap { overflow:auto; flex:1; padding: 0 14px 14px; }
+  table { border-collapse: collapse; font-size:.82rem; background:#fff; margin-top:10px; }
+  th, td { border:1px solid var(--line); padding:5px 8px; text-align:left; vertical-align:top; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  th { background:#f3eee6; position:sticky; top:0; font-weight:600; }
+  td.null { color:#aaa; font-style:italic; }
+  .msg { padding: 8px 14px; font-size:.85rem; } .err { color:#b3261e; } .ok { color:#1e5b22; }
+  .muted { color: var(--muted); font-size:.8rem; }
+  dialog { border:0; border-radius:12px; padding:0; width:min(640px, 95vw); }
+  dialog form { padding:16px; max-height:80vh; overflow:auto; }
+  dialog label { display:block; font-size:.75rem; color:var(--muted); margin-top:8px; }
+  dialog input { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-family:inherit; }
+  .sqlbox { padding: 10px 14px; border-bottom:1px solid var(--line); }
+</style>
+</head>
+<body>
+<aside>
+  <h1>DANTESRAS</h1>
+  <div class="muted" style="margin:-10px 16px 8px">Internal test database</div>
+  <button id="sqlBtn" onclick="showSql()">▶ SQL editor</button>
+  <div class="sec">Tables</div><div id="tables"></div>
+  <div class="sec">Views (read only)</div><div id="views"></div>
+</aside>
+<main>
+  <div id="sqlPanel" class="sqlbox" hidden>
+    <textarea id="sql" spellcheck="false">select name, phone, area from clients order by created_at desc limit 20;</textarea>
+    <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+      <button class="btn" onclick="runSql()">Run (Ctrl+Enter)</button>
+      <span class="muted">Any SQL: select, insert, update, delete, create… Changes are saved immediately.</span>
+    </div>
+  </div>
+  <div class="bar" id="tableBar" hidden>
+    <h2 id="title"></h2>
+    <span class="muted" id="count"></span>
+    <span style="flex:1"></span>
+    <input id="filter" placeholder="Filter: column=value" style="padding:6px;border:1px solid var(--line);border-radius:6px" onkeydown="if(event.key==='Enter'){page=0;loadTable()}" />
+    <button class="btn ghost small" onclick="page=Math.max(0,page-1);loadTable()">◀</button>
+    <span class="muted" id="pageNo"></span>
+    <button class="btn ghost small" onclick="page++;loadTable()">▶</button>
+    <button class="btn" id="addBtn" onclick="openRow(null)">+ Add row</button>
+  </div>
+  <div id="msg" class="msg"></div>
+  <div class="wrap"><table id="grid"></table></div>
+</main>
+
+<dialog id="dlg"><form method="dialog" onsubmit="return false">
+  <h3 id="dlgTitle" style="margin:0;color:var(--maroon)"></h3>
+  <p class="muted">Leave a field empty for NULL / default. JSON and arrays as JSON, e.g. ["stylist"].</p>
+  <div id="fields"></div>
+  <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+    <button class="btn ghost" onclick="dlg.close()">Cancel</button>
+    <button class="btn" onclick="saveRow()">Save</button>
+  </div>
+</form></dialog>
+
+<script>
+const PAGE = 100;
+let meta, current = null, page = 0, editing = null, lastRows = [];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const msg = (text, cls = '') => { $('msg').className = 'msg ' + cls; $('msg').textContent = text; };
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', Prefer: 'return=representation', ...(opts.headers || {}) } });
+  const t = await r.text();
+  const j = t ? JSON.parse(t) : null;
+  if (!r.ok) throw new Error(j?.message || r.statusText);
+  return j;
+}
+
+async function init() {
+  meta = await api('/console/meta');
+  const btn = (r) => `<button data-t="${r.name}" onclick="openTable('${r.name}')">${r.name}</button>`;
+  $('tables').innerHTML = meta.relations.filter((r) => r.kind === 'table').map(btn).join('');
+  $('views').innerHTML = meta.relations.filter((r) => r.kind === 'view').map(btn).join('');
+  openTable('clients');
+}
+
+function highlight(name) {
+  document.querySelectorAll('aside button').forEach((b) => b.classList.toggle('on', b.dataset.t === name || (name === '#sql' && b.id === 'sqlBtn')));
+}
+
+function openTable(name) {
+  current = name; page = 0; $('filter').value = '';
+  $('sqlPanel').hidden = true; $('tableBar').hidden = false;
+  const isView = meta.relations.find((r) => r.name === name)?.kind === 'view';
+  $('addBtn').hidden = isView;
+  highlight(name); loadTable();
+}
+
+async function loadTable() {
+  const cols = meta.columns[current];
+  const order = cols.includes('created_at') ? 'created_at.desc' : cols.includes('sold_at') ? 'sold_at.desc' : cols.includes('name') ? 'name.asc' : cols[0] + '.asc';
+  let qs = `select=*&order=${order}&limit=${PAGE}&offset=${page * PAGE}`;
+  const f = $('filter').value.trim();
+  if (f) { const [c, ...v] = f.split('='); qs += `&${encodeURIComponent(c.trim())}=eq.${encodeURIComponent(v.join('=').trim())}`; }
+  try {
+    const rows = await api(`/rest/v1/${current}?${qs}`);
+    const n = await api('/console/sql', { method: 'POST', body: JSON.stringify({ sql: `select count(*)::int as n from "${current}"` }) });
+    $('title').textContent = current; $('count').textContent = `${n.rows[0].n} rows`; $('pageNo').textContent = `page ${page + 1}`;
+    render(cols, rows, !$('addBtn').hidden); msg('');
+  } catch (e) { msg(e.message, 'err'); }
+}
+
+function cell(v) {
+  if (v === null || v === undefined) return '<td class="null">null</td>';
+  const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+  return `<td title="${esc(s)}">${esc(s)}</td>`;
+}
+
+function render(cols, rows, editable) {
+  lastRows = rows;
+  const pk = meta.pks[current] || [];
+  const actions = editable && pk.length;
+  $('grid').innerHTML =
+    `<tr>${actions ? '<th></th>' : ''}${cols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr>` +
+    rows.map((r, i) => `<tr>${actions ? `<td><button class="btn small" onclick="openRow(${i})">Edit</button> <button class="btn danger" onclick="delRow(${i})">✕</button></td>` : ''}${cols.map((c) => cell(r[c])).join('')}</tr>`).join('') ||
+    `<tr><td class="muted">No rows</td></tr>`;
+}
+
+function openRow(i) {
+  editing = i === null ? null : lastRows[i];
+  $('dlgTitle').textContent = (editing ? 'Edit row in ' : 'Add row to ') + current;
+  $('fields').innerHTML = meta.columns[current].map((c) => {
+    const v = editing ? editing[c] : '';
+    const val = v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : v;
+    return `<label>${esc(c)}</label><input name="${esc(c)}" value="${esc(val)}" />`;
+  }).join('');
+  $('dlg').showModal();
+}
+
+function parseVal(s) {
+  const t = s.trim();
+  if (t === '') return null;
+  if (/^[\[{]/.test(t)) { try { return JSON.parse(t); } catch { /* keep text */ } }
+  if (t === 'true' || t === 'false') return t === 'true';
+  return t;
+}
+
+async function saveRow() {
+  const body = {};
+  for (const input of $('fields').querySelectorAll('input')) {
+    const v = parseVal(input.value);
+    const old = editing ? editing[input.name] : undefined;
+    if (editing) {
+      const oldS = old === null || old === undefined ? '' : typeof old === 'object' ? JSON.stringify(old) : String(old);
+      if (input.value !== oldS) body[input.name] = v;
+    } else if (v !== null) body[input.name] = v;
+  }
+  try {
+    if (editing) {
+      if (!Object.keys(body).length) return $('dlg').close();
+      await api(`/rest/v1/${current}?${pkFilter(editing)}`, { method: 'PATCH', body: JSON.stringify(body) });
+    } else {
+      await api(`/rest/v1/${current}`, { method: 'POST', body: JSON.stringify(body) });
+    }
+    $('dlg').close(); msg('Saved.', 'ok'); loadTable();
+  } catch (e) { alert(e.message); }
+}
+
+function pkFilter(row) {
+  return (meta.pks[current] || []).map((k) => `${k}=eq.${encodeURIComponent(row[k])}`).join('&');
+}
+
+async function delRow(i) {
+  if (!confirm('Delete this row? This cannot be undone.')) return;
+  try { await api(`/rest/v1/${current}?${pkFilter(lastRows[i])}`, { method: 'DELETE' }); msg('Deleted.', 'ok'); loadTable(); }
+  catch (e) { msg(e.message, 'err'); }
+}
+
+function showSql() {
+  current = null; $('sqlPanel').hidden = false; $('tableBar').hidden = true; highlight('#sql'); $('sql').focus();
+}
+
+async function runSql() {
+  const t0 = performance.now();
+  try {
+    const r = await api('/console/sql', { method: 'POST', body: JSON.stringify({ sql: $('sql').value }) });
+    current = null;
+    if (r.fields.length) { render(r.fields, r.rows, false); msg(`${r.rows.length} row(s) · ${Math.round(performance.now() - t0)} ms`, 'ok'); }
+    else { $('grid').innerHTML = ''; msg(`Done. ${r.affected} row(s) affected · ${r.statements} statement(s).`, 'ok'); }
+    if (/\b(create|alter|drop)\b/i.test($('sql').value)) init();
+  } catch (e) { msg(e.message, 'err'); }
+}
+$('sql').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runSql(); });
+init().catch((e) => msg(e.message, 'err'));
+</script>
+</body>
+</html>

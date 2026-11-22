@@ -1,0 +1,30 @@
+# dependencies and build output
+node_modules/
+app/www/
+app/.angular/
+app/e2e-report/
+app/e2e-results/
+app/android/.gradle/
+app/android/build/
+app/android/app/build/
+app/android/capacitor-cordova-android-plugins/build/
+app/android/local.properties
+
+# test databases (contain test data, recreated on start)
+local-db/data/
+local-db/.e2e-data/
+
+# built apps (share through GitHub Releases instead)
+dist/*.apk
+
+# secrets / local settings
+.env
+.env.*
+*.keystore
+*.jks
+.claude/settings.local.json
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.log

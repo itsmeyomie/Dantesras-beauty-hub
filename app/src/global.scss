@@ -1,0 +1,126 @@
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import "@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import "@ionic/angular/css/display.css";
+
+/* Optional CSS utils that can be commented out */
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
+
+/**
+ * Ionic Dark Mode
+ * -----------------------------------------------------
+ * For more info, please see:
+ * https://ionicframework.com/docs/theming/dark-mode
+ */
+
+/* @import "@ionic/angular/css/palettes/dark.always.css"; */
+/* @import "@ionic/angular/css/palettes/dark.class.css"; */
+/* Dark mode off: brand colours are designed for the light palette with black toolbars. */
+
+/* ---------- Dantesras app styles ---------- */
+.page-wrap { max-width: 1100px; margin: 0 auto; padding: 12px 16px 80px; }
+.muted { color: var(--app-muted); }
+.small { font-size: 0.85rem; }
+.gold { color: var(--app-gold); }
+.maroon { color: var(--app-maroon); }
+.right { text-align: right; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.grid-2 { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.card { background: var(--app-card-bg); border: 1px solid var(--app-border); border-radius: 12px; padding: 14px; }
+.card h3 { margin: 0 0 10px; font-size: 1rem; color: var(--app-maroon); }
+.stat .label { font-size: 0.78rem; color: var(--app-muted); text-transform: uppercase; letter-spacing: .04em; }
+.stat .value { font-size: 1.45rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.stat .delta { font-size: 0.8rem; margin-top: 2px; }
+.up { color: var(--ion-color-success); } .down { color: var(--ion-color-danger); }
+.field { --background: var(--app-field-bg); border-radius: 8px; margin-bottom: 8px; }
+.form-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.section-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--app-muted); margin: 18px 0 6px; }
+table.t { width: 100%; border-collapse: collapse; font-size: .9rem; }
+table.t th { text-align: left; font-weight: 600; color: var(--app-muted); font-size: .75rem; text-transform: uppercase; padding: 6px 4px; border-bottom: 1px solid var(--app-border); }
+table.t td { padding: 8px 4px; border-bottom: 1px solid var(--app-border); vertical-align: top; }
+table.t td.num, table.t th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .72rem; font-weight: 600; background: #eee; color: #333; }
+.pill.salon { background: #f4e3e6; color: var(--app-maroon); }
+.pill.home { background: #f7efd6; color: #7a5d00; }
+.pill.walkin { background: #e3e3e3; color: #222; }
+.pill.pending { background: #fff3cd; color: #7a5d00; }
+.pill.booked, .pill.completed { background: #e3f1e4; color: #1e5b22; }
+.pill.cancelled, .pill.no_show, .pill.void { background: #fbe1e1; color: #8e1c1c; }
+.pill.waiting, .pill.in_progress { background: #e5ecf7; color: #234a85; }
+.empty { text-align: center; color: var(--app-muted); padding: 32px 8px; }
+.notice { background: #fff8e6; border: 1px solid #f0d58a; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+ion-modal.wide { --width: min(720px, 100%); --height: min(92vh, 900px); --border-radius: 14px; }
+
+/* keep a gap between a bold name and the phone/details after it (Angular drops the space between tags) */
+strong + .muted, strong + span.muted { margin-left: 6px; }
+.pill.requested { background: #fde7c8; color: #8a4b00; }
+.pill.declined { background: #fbe1e1; color: #8e1c1c; }
+.card.request { border-left: 4px solid #e2a23b; }
+.inbox { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.inbox a { flex: 1 1 240px; display: block; padding: 12px 14px; border-radius: 12px; background: #fff4e0; border: 1px solid #f0c97a; color: #6b3d00; text-decoration: none; }
+.inbox a strong { font-size: 1.1rem; margin-right: 4px; }
+
+
+/* =====================================================================
+   Staff app in the same design as the client app (cream glow, glass cards, pills)
+   ===================================================================== */
+.staff-ui {
+  --ion-toolbar-background: transparent;
+  --ion-toolbar-color: #161214;
+  --ion-font-family: 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
+  --app-card-bg: rgba(255, 255, 255, .64);
+  --app-field-bg: rgba(255, 255, 255, .85);
+  --app-border: rgba(123, 30, 46, .08);
+  font-family: var(--ion-font-family);
+
+  ion-content {
+    --background:
+      radial-gradient(70% 38% at 0% 100%, rgba(123, 30, 46, .14) 0%, transparent 70%),
+      radial-gradient(60% 34% at 100% 85%, rgba(201, 162, 39, .18) 0%, transparent 70%),
+      radial-gradient(60% 30% at 100% 0%, rgba(226, 160, 174, .16) 0%, transparent 70%),
+      #faf6f0;
+  }
+  ion-header { box-shadow: none; }
+  ion-header::after { display: none; }
+  ion-toolbar { --background: #faf6f0; --border-width: 0 !important; --min-height: 64px; }
+  ion-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 1.3rem; color: #161214; }
+  ion-menu-button, ion-toolbar ion-button { --color: #7b1e2e; }
+  ion-button { --border-radius: 20px; text-transform: none; letter-spacing: 0; font-weight: 600; --box-shadow: none; }
+  ion-button[fill='outline'] { --border-width: 1.5px; }
+  ion-segment { --background: rgba(255, 255, 255, .55); border-radius: 18px; padding: 4px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .9); }
+  ion-segment-button { --indicator-color: transparent; --color: #8a7f78; --color-checked: #f1d27a; --border-radius: 14px; text-transform: none;
+    letter-spacing: 0; font-weight: 600; min-height: 40px; margin: 0 2px; }
+  ion-segment-button.segment-button-checked { --background: #161214; background: #161214; border-radius: 14px; }
+  .card { background: rgba(255, 255, 255, .64); backdrop-filter: blur(10px); border: 0; border-radius: 22px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .9), 0 10px 30px rgba(74, 15, 27, .08); }
+  .card h3 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.1rem; color: #161214; }
+  .stat .value { font-family: 'Playfair Display', Georgia, serif; }
+  .field { --background: rgba(255, 255, 255, .85); border-radius: 14px; box-shadow: inset 0 0 0 1px #ece3d7; }
+  .page-wrap { padding-bottom: 120px; }
+  .pill { border-radius: 10px; }
+  ion-searchbar { --border-radius: 16px; --background: rgba(255, 255, 255, .85); --box-shadow: inset 0 0 0 1px #ece3d7; }
+  ion-modal ion-content { --background: #faf6f0; }
+}
+/* phones: the role tab bar replaces the side menu */
+.staff-tabs { z-index: 40; }
