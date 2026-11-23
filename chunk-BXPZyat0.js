@@ -1,0 +1,1 @@
+import{t as $}from"./chunk-BD4ARcNi.js";var o=$(`App`,{web:()=>import(`./chunk-DveK2jSe.js`).then(e=>new e.AppWeb)});export{o as App};

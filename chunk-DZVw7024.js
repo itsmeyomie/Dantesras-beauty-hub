@@ -1,0 +1,1 @@
+import{t as $}from"./chunk-BD4ARcNi.js";var t=$(`Browser`,{web:()=>import(`./chunk-CQ1h_u1X.js`).then(e=>new e.BrowserWeb)});export{t as Browser};
