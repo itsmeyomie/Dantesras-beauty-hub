@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, ViewWillEnter } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { logOutOutline, personCircleOutline } from 'ionicons/icons';
+import { briefcaseOutline, logOutOutline, personCircleOutline } from 'ionicons/icons';
 import { KshPipe, Ui } from '../core/ui';
 import { PortalService } from './portal.service';
 import { PortalTabsComponent } from './portal-tabs.component';
@@ -41,7 +41,11 @@ import { PortalTabsComponent } from './portal-tabs.component';
             <div style="margin-top:16px"><a class="p-btn" routerLink="/portal/sign-in">Sign in</a></div>
           </div>
         }
-        <a class="p-staff-link" routerLink="/dashboard">Staff area</a>
+        <a class="p-card p-row" routerLink="/staff/sign-in" style="margin-top:22px;text-decoration:none;color:inherit" data-testid="staff-entry">
+          <span class="p-round ink"><ion-icon name="briefcase-outline"></ion-icon></span>
+          <span class="p-spacer"><b>Work at Dantesras?</b><br /><span class="p-muted p-small">Owner and staff sign in here</span></span>
+          <span class="p-btn small">Staff sign-in</span>
+        </a>
       </div>
     </ion-content>
     <app-portal-tabs />
@@ -56,7 +60,7 @@ export class PortalAccountPage implements ViewWillEnter {
   f = { name: '', phone: '', email: '', area: '' };
 
   constructor() {
-    addIcons({ logOutOutline, personCircleOutline });
+    addIcons({ logOutOutline, personCircleOutline, briefcaseOutline });
   }
   async ionViewWillEnter() {
     try {

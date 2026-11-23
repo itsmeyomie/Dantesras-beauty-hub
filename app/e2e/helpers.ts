@@ -91,6 +91,7 @@ export const STAFF = {
   manager: 'manager@dantesras.test',
   receptionist: 'reception@dantesras.test',
   stylist: 'stylist@dantesras.test',
+  finisher: 'finisher@dantesras.test',
 } as const;
 export type StaffRoleName = keyof typeof STAFF;
 

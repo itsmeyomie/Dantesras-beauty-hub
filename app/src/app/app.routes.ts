@@ -39,6 +39,7 @@ export const routes: Routes = [
   s('my-day', 'my-day', () => import('./staff/my-day.page').then((m) => m.MyDayPage)),
   s('my-calendar', 'my-day', () => import('./staff/my-calendar.page').then((m) => m.MyCalendarPage)),
   s('my-earnings', 'my-day', () => import('./staff/my-earnings.page').then((m) => m.MyEarningsPage)),
+  s('roles', 'roles', () => import('./staff/roles.page').then((m) => m.RolesPage)),
   s('staff-requests', 'staff-requests', () => import('./staff/staff-requests.page').then((m) => m.StaffRequestsPage)),
   s('dashboard', 'dashboard', () => import('./staff/home.page').then((m) => m.StaffHomePage)),
   s('dashboard-classic', 'dashboard', () => import('./pages/dashboard.page').then((m) => m.DashboardPage)),

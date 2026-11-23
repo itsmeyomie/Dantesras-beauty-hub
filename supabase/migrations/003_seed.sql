@@ -13,8 +13,9 @@ insert into settings(key, value) values
   ('school_hours','{"mon_fri":{"open":"09:00","close":"17:00"}}')
 on conflict (key) do nothing;
 
-insert into staff(name, roles) values ('Owner', '{owner,stylist}')
-on conflict do nothing;
+-- only one owner record, even if this file is run again
+insert into staff(name, roles) select 'Owner', '{owner,stylist}'
+where not exists (select 1 from staff where 'owner' = any(roles));
 
 insert into service_categories(name, client_type, sort) values
   ('Nails','any',1), ('Kids Hair','kids',2), ('Adult Hair','adult',3),
@@ -27,6 +28,10 @@ create or replace function pg_temp.add_service(p_cat text, p_name text, p_price 
 returns void language plpgsql as $$
 declare v_id uuid; v jsonb; i int := 0;
 begin
+  -- safe to run again: a service that is already on the menu is left as it is
+  if exists (select 1 from services s join service_categories c on c.id = s.category_id where c.name = p_cat and s.name = p_name) then
+    return;
+  end if;
   insert into services(category_id, name, price, price_type, max_price, sort)
   values ((select id from service_categories where name = p_cat), p_name, p_price, p_type, p_max, p_sort)
   returning id into v_id;

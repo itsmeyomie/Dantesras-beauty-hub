@@ -42,7 +42,7 @@ Photos and specialities are shown to clients when they choose a stylist.
 > real client data before that.
 
 **Test logins** (internal test database only, password `test1234`): `owner@dantesras.test`,
-`manager@dantesras.test`, `reception@dantesras.test`, `stylist@dantesras.test`.
+`manager@dantesras.test`, `reception@dantesras.test`, `stylist@dantesras.test`, `finisher@dantesras.test`.
 
 ## 0. Internal test database (no internet, no Supabase account)
 `local-db/` is an embedded PostgreSQL that runs on this computer with ~200 sales of fake data
@@ -86,7 +86,7 @@ In test mode the sign-in code and the M-Pesa prompt appear **on screen** (marked
 ```bash
 cd app
 npx playwright install chromium   # once
-npx playwright test               # 72 tests: staff app, M-Pesa prompt, client app, school, owner settings, staff accounts, every role – phone and desktop size
+npx playwright test               # 92 tests: staff app, M-Pesa prompt, client app, school, owner settings, staff accounts, every role, team free/busy and assigning, custom roles and finisher, early check-in – phone and desktop size
 npx playwright show-report e2e-report
 ```
 The tests start their own throw-away database (port 54329) and app (port 4300) – your test data is not touched.

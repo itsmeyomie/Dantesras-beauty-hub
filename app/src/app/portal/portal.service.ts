@@ -110,7 +110,11 @@ export class PortalService {
 
   // ---------- sign-in ----------
   requestCode(channel: OtpChannel, address: string) {
-    return this.data.invoke<{ sent: boolean; to: string; simulated: boolean; dev_code?: string }>('portal-otp', { channel, address });
+    type Sent = { sent: boolean; to: string; simulated: boolean; dev_code?: string };
+    // test mode: the database hands out the code (shown on screen); live: the portal-otp function sends it
+    return this.simulation
+      ? this.call<Sent>('portal_test_code', { p_channel: channel, p_address: address })
+      : this.data.invoke<Sent>('portal-otp', { channel, address });
   }
   async verify(channel: OtpChannel, address: string, code: string): Promise<{ is_new: boolean }> {
     const r = await this.call<{ token: string; is_new: boolean }>('portal_verify_code', { p_channel: channel, p_address: address, p_code: code });

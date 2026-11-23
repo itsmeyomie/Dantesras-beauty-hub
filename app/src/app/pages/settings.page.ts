@@ -31,6 +31,7 @@ interface Hours { mon_sat: { open: string; close: string }; sun: { open: string;
             <ion-item lines="none" class="field"><ion-input label="Reschedule if late by (minutes)" labelPlacement="stacked" type="number" [(ngModel)]="v.late_minutes"></ion-input></ion-item>
             <ion-item lines="none" class="field"><ion-input label="Max staff discount (%)" labelPlacement="stacked" type="number" [(ngModel)]="v.max_discount_pct"></ion-input></ion-item>
             <ion-item lines="none" class="field"><ion-input label="Kids prices up to age" labelPlacement="stacked" type="number" [(ngModel)]="v.kids_max_age"></ion-input></ion-item>
+            <ion-item lines="none" class="field"><ion-input label="Finisher's share of the commission (%)" labelPlacement="stacked" type="number" min="0" max="90" [(ngModel)]="v.finisher_share_pct" data-testid="finisher-share"></ion-input></ion-item>
           </div>
         </div>
         <div class="card" style="margin-top:12px">
@@ -86,7 +87,7 @@ export class SettingsPage implements ViewWillEnter {
   /** the form shows only once the saved values are loaded, so nothing typed is overwritten */
   readonly ready = signal(false);
   readonly saving = signal(false);
-  v = { deposit_min: 500, late_minutes: 20, max_discount_pct: 10, kids_max_age: 12 };
+  v = { deposit_min: 500, late_minutes: 20, max_discount_pct: 10, kids_max_age: 12, finisher_share_pct: 20 };
   hours: Hours = { mon_sat: { open: '08:00', close: '20:00' }, sun: { open: '12:00', close: '20:00' } };
   online = { on: true, lead: 60, days: 30, duration: 120, max_open: 3, phone: '', location: '' };
   mpesa = { method: 'mpesa_paybill', name: 'DANTESRAS BEAUTY HUB' };

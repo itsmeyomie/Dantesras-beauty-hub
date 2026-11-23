@@ -11,6 +11,9 @@ import { addOutline, chevronBackOutline, chevronForwardOutline, trashOutline } f
 import { DataService } from '../core/data.service';
 import { Booking, BookingService, CHANNELS, Client, Channel, PaymentInput, SOURCES, channelLabel } from '../core/models';
 import { MonthCalendarComponent } from '../core/month-calendar.component';
+import { AssignSheetComponent } from '../staff/assign-sheet.component';
+import { crewNames, mainIds } from '../core/team';
+import { checkIn } from '../core/checkin';
 import { NotConfiguredComponent } from '../core/not-configured.component';
 import { PayDialogComponent } from '../core/pay-dialog.component';
 import { PaymentEntryComponent, paymentError } from '../core/payment-entry.component';
@@ -28,6 +31,7 @@ interface BookingForm {
     FormsModule, DatePipe, KshPipe, IonHeader, IonToolbar, IonButtons, IonMenuButton, IonTitle, IonContent, IonButton, IonIcon,
     IonSegment, IonSegmentButton, IonLabel, IonModal, IonItem, IonInput, IonSelect, IonSelectOption, IonTextarea,
     NotConfiguredComponent, MonthCalendarComponent, ClientPickerComponent, ServicePickerComponent, PaymentEntryComponent, PayDialogComponent,
+    AssignSheetComponent,
   ],
   template: `
     <ion-header><ion-toolbar>
@@ -64,7 +68,8 @@ interface BookingForm {
               @if (b.notes) { <div class="small muted">Client note: {{ b.notes }}</div> }
               <div class="row actions">
                 <ion-button size="small" (click)="confirmRequest(b)">Confirm</ion-button>
-                <ion-button size="small" fill="outline" (click)="edit(b)">Change time / stylist</ion-button>
+                <ion-button size="small" fill="outline" (click)="assigning.set(b)" data-testid="request-assign">{{ staffNames(b) ? 'Change stylist' : 'Assign stylist' }}</ion-button>
+                <ion-button size="small" fill="outline" (click)="edit(b)">Change time</ion-button>
                 <ion-button size="small" fill="clear" color="danger" (click)="declineRequest(b)">Decline</ion-button>
               </div>
             </div>
@@ -104,8 +109,17 @@ interface BookingForm {
               <div class="small">Paid upfront: <strong>{{ deposits(b) | ksh }}</strong>
                 @if (b.status === 'pending') { <span class="maroon"> – needs {{ minDeposit() | ksh }} or full amount to hold the slot</span> }</div>
               @if (b.notes) { <div class="small muted">Note: {{ b.notes }}</div> }
+              @if (b.early_reason) { <div class="small maroon" data-testid="early-note">Came early – had booked {{ b.original_scheduled_at | date: 'EEE d MMM, HH:mm' }}. Reason: {{ b.early_reason }}</div> }
+              @if (b.status === 'requested') {
+                <div class="row actions" data-testid="day-request-actions">
+                  <span class="small maroon" style="font-weight:600">Online request – answer the client:</span>
+                  <ion-button size="small" (click)="confirmRequest(b)">Confirm</ion-button>
+                  <ion-button size="small" fill="clear" color="danger" (click)="declineRequest(b)">Decline</ion-button>
+                </div>
+              }
               @if (open(b)) {
                 <div class="row actions">
+                  <ion-button size="small" [fill]="staffNames(b) ? 'outline' : 'solid'" (click)="assigning.set(b)" data-testid="day-assign">{{ staffNames(b) ? 'Change stylist' : 'Assign stylist' }}</ion-button>
                   <ion-button size="small" fill="outline" (click)="depositFor.set(b)">+ Payment</ion-button>
                   @if (b.status !== 'in_progress') { <ion-button size="small" fill="outline" (click)="start(b)">Arrived / start</ion-button> }
                   <ion-button size="small" (click)="checkout(b)">Checkout</ion-button>
@@ -132,11 +146,7 @@ interface BookingForm {
               <div class="small">{{ serviceNames(b) }} · <strong>{{ value(b) | ksh }}</strong></div>
               <div class="small muted">{{ staffNames(b) ? 'With ' + staffNames(b) : 'Next free stylist' }}</div>
               <div class="row actions">
-                <ion-item lines="none" class="field" style="min-width:200px;margin:0">
-                  <ion-select label="Stylist(s)" labelPlacement="stacked" [multiple]="true" [ngModel]="queueStaff().get(b.id)" (ngModelChange)="assign(b, $event)">
-                    @for (s of activeStaff(); track s.id) { <ion-select-option [value]="s.id">{{ s.name }}</ion-select-option> }
-                  </ion-select>
-                </ion-item>
+                <ion-button size="small" [fill]="staffNames(b) ? 'outline' : 'solid'" (click)="assigning.set(b)" data-testid="queue-assign">{{ staffNames(b) ? 'Change stylist' : 'Assign stylist' }}</ion-button>
                 @if (b.status === 'waiting') { <ion-button size="small" fill="outline" (click)="start(b)">Start</ion-button> }
                 <ion-button size="small" (click)="checkout(b)">Checkout</ion-button>
                 <ion-button size="small" fill="clear" color="medium" (click)="cancel(b)">Left / cancel</ion-button>
@@ -222,6 +232,7 @@ interface BookingForm {
         </ng-template>
       </ion-modal>
     </ion-content>
+    <app-assign-sheet [booking]="assigning()" (closed)="assigning.set(null)" (done)="assigning.set(null); load()" />
   `,
   styles: `
     .booking { margin-bottom: 10px; }
@@ -256,6 +267,7 @@ export class BookingsPage implements ViewWillEnter {
   readonly cal = viewChild<MonthCalendarComponent>('cal');
   private countsMonth = '';
   readonly form = signal<BookingForm | null>(null);
+  readonly assigning = signal<Booking | null>(null);
   readonly chosen = signal<PickedService[]>([]);
   readonly busy = signal<string[]>([]);
   readonly saving = signal(false);
@@ -267,7 +279,6 @@ export class BookingsPage implements ViewWillEnter {
   readonly label = channelLabel;
   readonly activeStaff = computed(() => this.data.staff().filter((s) => s.active));
   /** Stable stylist-id arrays per walk-in. A fresh array on every render made ngModel re-render forever (page froze). */
-  readonly queueStaff = computed(() => new Map(this.queue().map((b) => [b.id, this.staffIds(b)])));
   readonly minDeposit = computed(() => Number(this.data.setting('deposit_min', 500)));
   readonly lateMinutes = computed(() => Number(this.data.setting('late_minutes', 20)));
 
@@ -358,10 +369,10 @@ export class BookingsPage implements ViewWillEnter {
     return (b.booking_services ?? []).map((s) => s.name).join(', ') || 'No services yet';
   }
   staffNames(b: Booking) {
-    return (b.booking_staff ?? []).map((s) => s.staff?.name).filter(Boolean).join(' & ');
+    return crewNames(b);
   }
   staffIds(b: Booking) {
-    return (b.booking_staff ?? []).map((s) => s.staff_id);
+    return mainIds(b);
   }
   value(b: Booking) {
     return (b.booking_services ?? []).reduce((a, s) => a + Number(s.price), 0) + Number(b.transport_fee ?? 0);
@@ -482,11 +493,13 @@ export class BookingsPage implements ViewWillEnter {
   }
 
   // ----- actions -----
+  /** Check in; before the booking day a reason is required and the booking moves to today. */
   async start(b: Booking) {
-    await this.act(() => this.data.setBookingStatus(b.id, 'in_progress', { started_at: new Date().toISOString() }), 'Started');
-  }
-  async assign(b: Booking, ids: string[]) {
-    await this.act(() => this.data.setBookingStaff(b.id, ids), 'Stylist assigned');
+    try {
+      if (await checkIn(this.data, this.ui, b)) await this.load();
+    } catch (e) {
+      this.ui.error(e);
+    }
   }
   checkout(b: Booking) {
     this.router.navigate(['/checkout'], { queryParams: { booking: b.id } });

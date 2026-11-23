@@ -58,9 +58,10 @@ export class Ui {
     await a.present();
     return (await a.onDidDismiss()).role === 'ok';
   }
-  async prompt(header: string, placeholder: string): Promise<string | null> {
+  async prompt(header: string, placeholder: string, message?: string): Promise<string | null> {
     const a = await this.alertCtrl.create({
       header,
+      message,
       inputs: [{ name: 'v', type: 'text', placeholder }],
       buttons: [{ text: 'Cancel', role: 'cancel' }, { text: 'OK', role: 'ok' }],
     });

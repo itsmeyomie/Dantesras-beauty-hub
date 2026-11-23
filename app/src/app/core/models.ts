@@ -18,6 +18,11 @@ export const SOURCES = ['Call', 'WhatsApp', 'Instagram', 'Facebook', 'TikTok', '
 export interface Staff {
   id: string; name: string; phone: string | null; roles: string[];
   basic_salary: number; payout_schedule: 'daily' | 'weekly' | 'biweekly' | 'monthly'; active: boolean;
+  photo?: string | null; specialty?: string | null;
+}
+/** A job / role. The owner creates them and picks the screens each one can open. */
+export interface StaffRoleDef {
+  key: string; name: string; areas: string[]; serves: boolean; finishes: boolean; built_in: boolean; sort: number;
 }
 export interface Client {
   id: string; name: string; phone: string | null; whatsapp: string | null; birth_date: string | null;
@@ -42,9 +47,11 @@ export interface Booking {
   stylists_needed: number; transport_fee: number; notes: string | null; created_at: string;
   started_at: string | null; completed_at: string | null; cancel_reason: string | null;
   online?: boolean; response_note?: string | null;
+  /** client served before the booked day: why, and the day they had booked */
+  early_reason?: string | null; original_scheduled_at?: string | null;
   clients?: { name: string; phone: string | null } | null;
   booking_services?: BookingService[];
-  booking_staff?: { staff_id: string; staff?: { name: string } }[];
+  booking_staff?: { staff_id: string; part?: 'main' | 'finisher'; staff?: { name: string } }[];
   payments?: { amount: number; kind: string }[];
 }
 export interface Course {

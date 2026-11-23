@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { DataService } from '../core/data.service';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { IonContent, IonSpinner } from '@ionic/angular';
@@ -71,7 +72,7 @@ type Mode = 'signin' | 'create' | 'owner' | 'pending';
           @if (mode() === 'create') {
             <div class="p-kicker" style="color:var(--p-muted);margin:4px 2px 6px">I work as</div>
             <div class="p-pills">
-              @for (r of roles; track r.value) {
+              @for (r of roles(); track r.value) {
                 <button class="p-chip" [class.on]="f.role === r.value" (click)="f.role = r.value" [attr.data-role]="r.value">{{ r.label }}</button>
               }
             </div>
@@ -95,6 +96,7 @@ export class StaffSignInPage implements OnInit {
   private auth = inject(StaffAuthService);
   private router = inject(Router);
   private ui = inject(Ui);
+  private data = inject(DataService);
   readonly returnUrl = input<string>();
   readonly mode = signal<Mode>('signin');
   readonly busy = signal(false);
@@ -103,7 +105,11 @@ export class StaffSignInPage implements OnInit {
   readonly error = signal('');
   readonly setupNeeded = signal(false);
   readonly pending = signal<StaffMe | null>(null);
-  readonly roles = [{ value: 'stylist', label: 'Stylist' }, { value: 'receptionist', label: 'Receptionist' }, { value: 'manager', label: 'Manager' }];
+  /** jobs someone can ask for (all roles except owner and tutor) */
+  readonly roles = computed(() => {
+    const list = this.data.roles().filter((r) => r.key !== 'owner' && r.key !== 'tutor').map((r) => ({ value: r.key, label: r.name }));
+    return list.length ? list : [{ value: 'stylist', label: 'Stylist' }, { value: 'receptionist', label: 'Receptionist' }, { value: 'manager', label: 'Manager' }];
+  });
   f = { name: '', email: '', phone: '', password: '', role: 'stylist', specialty: '' };
 
   async ngOnInit() {
@@ -120,7 +126,7 @@ export class StaffSignInPage implements OnInit {
     return (n ?? '').split(' ')[0];
   }
   roleName(r?: string | null) {
-    return r === 'manager' ? 'Manager' : r === 'receptionist' ? 'Receptionist' : 'Stylist';
+    return this.data.roleName(r || 'stylist');
   }
   async pickPhoto(ev: Event) {
     const file = (ev.target as HTMLInputElement).files?.[0];

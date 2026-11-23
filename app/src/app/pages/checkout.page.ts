@@ -8,6 +8,7 @@ import {
 import { addIcons } from 'ionicons';
 import { trashOutline } from 'ionicons/icons';
 import { DataService } from '../core/data.service';
+import { bookedForLater, checkIn } from '../core/checkin';
 import { Booking, CHANNELS, Channel, PaymentInput } from '../core/models';
 import { NotConfiguredComponent } from '../core/not-configured.component';
 import { PaymentEntryComponent, paymentError } from '../core/payment-entry.component';
@@ -149,6 +150,7 @@ export class CheckoutPage implements ViewWillEnter {
   readonly channels = CHANNELS;
   readonly lines = signal<Line[]>([]);
   readonly shares = signal<Share[]>([]);
+  readonly finisherIds = signal<string[]>([]);
   readonly payments = signal<PaymentInput[]>([{ method: 'cash', amount: null }]);
   readonly loadedBooking = signal<Booking | null>(null);
   readonly busy = signal(false);
@@ -187,7 +189,8 @@ export class CheckoutPage implements ViewWillEnter {
           ? { client: (await this.data.getClient(b.client_id)), guestName: '' }
           : { client: null, guestName: b.guest_name ?? '' };
         this.lines.set((b.booking_services ?? []).map((s) => ({ kind: 'service', service_id: s.service_id, variant_id: s.variant_id, product_id: null, name: s.name, qty: 1, unit_price: Number(s.price) })));
-        this.setStaff((b.booking_staff ?? []).map((s) => s.staff_id));
+        const st = b.booking_staff ?? [];
+        this.setCrew(st.filter((s) => s.part !== 'finisher').map((s) => s.staff_id), st.filter((s) => s.part === 'finisher').map((s) => s.staff_id));
       } else if (cid) {
         this.who = { client: await this.data.getClient(cid), guestName: '' };
       }
@@ -265,8 +268,22 @@ export class CheckoutPage implements ViewWillEnter {
     const base = n ? Math.floor((100 / n) * 100) / 100 : 0;
     this.shares.set(ids.map((id, i) => ({ staff_id: id, share_pct: i === 0 ? Math.round((100 - base * (n - 1)) * 100) / 100 : base })));
   }
+  /** Main stylist(s) share the commission; a finisher gets the set finisher share (Settings, default 20%). */
+  setCrew(mains: string[], finishers: string[]) {
+    this.finisherIds.set(finishers);
+    if (!finishers.length || !mains.length) return this.setStaff([...mains, ...finishers]);
+    const fPct = Math.min(90, Math.max(0, Number(this.data.setting('finisher_share_pct', 20))));
+    const each = Math.floor((fPct / finishers.length) * 100) / 100;
+    const mainTotal = Math.round((100 - each * finishers.length) * 100) / 100;
+    const m = Math.floor((mainTotal / mains.length) * 100) / 100;
+    this.shares.set([
+      ...mains.map((id, i) => ({ staff_id: id, share_pct: i === 0 ? Math.round((mainTotal - m * (mains.length - 1)) * 100) / 100 : m })),
+      ...finishers.map((id) => ({ staff_id: id, share_pct: each })),
+    ]);
+  }
   staffName(id: string) {
-    return this.data.staff().find((s) => s.id === id)?.name ?? '';
+    const n = this.data.staff().find((s) => s.id === id)?.name ?? '';
+    return this.finisherIds().includes(id) ? n + ' · finisher' : n;
   }
   addPayment() {
     this.payments.update((p) => [...p, { method: 'mpesa_till', amount: null }]);
@@ -276,6 +293,16 @@ export class CheckoutPage implements ViewWillEnter {
   }
 
   async submit() {
+    // before the booking day the client must first be checked in early, with a reason
+    const lb = this.loadedBooking();
+    if (lb && lb.status !== 'in_progress' && bookedForLater(lb)) {
+      try {
+        if (!(await checkIn(this.data, this.ui, lb))) return;
+        this.loadedBooking.set({ ...lb, status: 'in_progress' });
+      } catch (e) {
+        return this.ui.error(e);
+      }
+    }
     if (!this.who.client && !this.who.guestName.trim()) return this.ui.toast('Choose a client or enter a guest name', 'danger');
     if (!this.lines().length) return this.ui.toast('Add at least one service or product', 'danger');
     if (!this.shares().length) return this.ui.toast('Choose the stylist(s) who did the work', 'danger');

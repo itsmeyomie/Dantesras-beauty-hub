@@ -59,11 +59,7 @@ type Period = 'today' | 'week' | 'biweek' | 'month';
                 <ion-item lines="none" class="field"><ion-input label="Phone" labelPlacement="stacked" type="tel" [(ngModel)]="f.phone"></ion-input></ion-item>
                 <ion-item lines="none" class="field">
                   <ion-select label="Roles" labelPlacement="stacked" [multiple]="true" [(ngModel)]="f.roles">
-                    <ion-select-option value="owner">Owner</ion-select-option>
-                    <ion-select-option value="stylist">Stylist</ion-select-option>
-                    <ion-select-option value="tutor">Tutor</ion-select-option>
-                    <ion-select-option value="receptionist">Receptionist (future)</ion-select-option>
-                    <ion-select-option value="manager">Manager (future)</ion-select-option>
+                    @for (r of data.roles(); track r.key) { <ion-select-option [value]="r.key">{{ r.name }}</ion-select-option> }
                   </ion-select>
                 </ion-item>
                 <ion-item lines="none" class="field">

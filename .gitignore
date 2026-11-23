@@ -16,6 +16,7 @@ local-db/.e2e-data/
 
 # built apps (share through GitHub Releases instead)
 dist/*.apk
+dist/*.zip
 
 # secrets / local settings
 .env

@@ -7,6 +7,9 @@ import { Booking, Debt, Report } from '../core/models';
 import { StaffAuthService } from '../core/staff-auth.service';
 import { KshPipe, Ui, addDays, dayRange, ksh, startOfDay, ymd } from '../core/ui';
 import { StaffHeaderComponent } from './staff-header.component';
+import { TeamBoardComponent } from './team-board.component';
+import { crewNames } from '../core/team';
+import { AssignSheetComponent } from './assign-sheet.component';
 
 interface Need { text: string; url: string; query?: Record<string, string>; action: string; strong?: boolean; }
 
@@ -14,7 +17,7 @@ interface Need { text: string; url: string; query?: Record<string, string>; acti
 @Component({
   selector: 'app-staff-home',
   host: { class: 'portal' },
-  imports: [DatePipe, RouterLink, KshPipe, IonContent, IonRefresher, IonRefresherContent, StaffHeaderComponent],
+  imports: [DatePipe, RouterLink, KshPipe, IonContent, IonRefresher, IonRefresherContent, StaffHeaderComponent, TeamBoardComponent, AssignSheetComponent],
   template: `
     <ion-content>
       <ion-refresher slot="fixed" (ionRefresh)="refresh($event)"><ion-refresher-content></ion-refresher-content></ion-refresher>
@@ -54,6 +57,8 @@ interface Need { text: string; url: string; query?: Record<string, string>; acti
           <div class="p-skeleton" style="height:170px;border-radius:26px;margin-top:14px"></div>
         }
 
+        <app-team-board [bookings]="active()" />
+
         @if (needs().length) {
           <div class="p-card" data-testid="inbox">
             <div class="p-kicker">{{ owner() ? 'Needs the owner' : 'Needs you' }}</div>
@@ -77,12 +82,14 @@ interface Need { text: string; url: string; query?: Record<string, string>; acti
           <div class="p-card p-row">
             <span class="p-t">{{ b.scheduled_at | date: 'HH:mm' }}</span>
             <div class="p-spacer"><b>{{ b.clients?.name ?? b.guest_name }}</b>
-              <div class="p-muted p-small">{{ staffNames(b) || 'No stylist yet' }}{{ b.channel === 'home' ? ' · home service' : '' }}</div></div>
-            <span class="p-badge {{ b.status === 'booked' ? 'ok' : 'wait' }}">{{ b.status === 'booked' ? 'Booked' : 'No deposit' }}</span>
+              <div class="p-muted p-small">{{ staffNames(b) || 'No stylist yet' }}{{ b.channel === 'home' ? ' · home service' : '' }}</div>
+              <span class="p-badge {{ b.status === 'booked' ? 'ok' : 'wait' }}" style="margin-top:4px">{{ b.status === 'booked' ? 'Booked' : 'No deposit' }}</span></div>
+            <button class="p-btn small" [class.ghost]="!!staffNames(b)" (click)="assigning.set(b)" data-testid="home-assign">{{ staffNames(b) ? 'Change' : 'Assign' }}</button>
           </div>
         } @empty { <div class="p-empty">No more bookings today.</div> }
       </div>
     </ion-content>
+    <app-assign-sheet [booking]="assigning()" (closed)="assigning.set(null)" (done)="assigning.set(null); load()" />
   `,
 })
 export class StaffHomePage implements ViewWillEnter {
@@ -97,6 +104,7 @@ export class StaffHomePage implements ViewWillEnter {
   readonly requests = signal(0);
   readonly applications = signal(0);
   readonly staffRequests = signal(0);
+  readonly assigning = signal<Booking | null>(null);
   readonly owner = computed(() => this.auth.role() === 'owner');
   fmt = ksh;
 
@@ -144,7 +152,7 @@ export class StaffHomePage implements ViewWillEnter {
   });
 
   staffNames(b: Booking) {
-    return (b.booking_staff ?? []).map((s) => s.staff?.name).filter(Boolean).join(' & ');
+    return crewNames(b);
   }
   ionViewWillEnter() {
     void this.load();

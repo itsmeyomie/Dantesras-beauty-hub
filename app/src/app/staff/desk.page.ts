@@ -8,12 +8,15 @@ import { StaffAuthService } from '../core/staff-auth.service';
 import { KshPipe, Ui, dayRange, startOfDay, ymd } from '../core/ui';
 import { STATUS, bookingPaid, bookingValue, serviceNames } from './my-day.page';
 import { StaffHeaderComponent } from './staff-header.component';
+import { TeamBoardComponent } from './team-board.component';
+import { crewNames } from '../core/team';
+import { AssignSheetComponent } from './assign-sheet.component';
 
 /** Receptionist home: quick actions, online requests to answer, walk-in queue, today's bookings. */
 @Component({
   selector: 'app-desk',
   host: { class: 'portal' },
-  imports: [DatePipe, RouterLink, KshPipe, IonContent, IonRefresher, IonRefresherContent, StaffHeaderComponent],
+  imports: [DatePipe, RouterLink, KshPipe, IonContent, IonRefresher, IonRefresherContent, StaffHeaderComponent, TeamBoardComponent, AssignSheetComponent],
   template: `
     <ion-content>
       <ion-refresher slot="fixed" (ionRefresh)="refresh($event)"><ion-refresher-content></ion-refresher-content></ion-refresher>
@@ -32,14 +35,18 @@ import { StaffHeaderComponent } from './staff-header.component';
           <div class="p-stat"><small>Waiting</small><b>{{ waiting().length }}</b></div>
         </div>
 
+        <app-team-board [bookings]="board()" [now]="now()" />
+
         <div class="p-card" data-testid="desk-requests">
           <div class="p-row"><div class="p-kicker p-spacer">Online requests · {{ requests().length }}</div><span class="p-muted p-small">answer first</span></div>
           @for (b of requests(); track b.id) {
             <div style="padding:10px 0;border-bottom:1px solid rgba(123,30,46,.07)" data-testid="desk-request">
               <div class="p-row"><b class="p-spacer">{{ b.clients?.name ?? b.guest_name }}</b><span class="p-muted p-small">{{ b.clients?.phone }}</span></div>
               <div class="p-muted p-small">{{ b.scheduled_at | date: 'EEE d MMM · HH:mm' }} · {{ names(b) }} · paid {{ paid(b) | ksh }}</div>
+              <div class="p-small" style="margin-top:2px">Stylist: <b>{{ stylist(b) || 'Any stylist' }}</b></div>
               <div class="p-row" style="margin-top:8px;gap:6px">
                 <button class="p-link" style="color:#9b1c1c" (click)="decline(b)">Decline</button>
+                <button class="p-btn small ghost" (click)="assigning.set(b)" data-testid="desk-assign">{{ stylist(b) ? 'Change stylist' : 'Assign' }}</button>
                 <a class="p-btn small ghost" routerLink="/bookings" [queryParams]="{ tab: 'requests' }">Change time</a>
                 <span class="p-spacer"></span>
                 <button class="p-btn small" (click)="confirm(b)" data-testid="desk-confirm">Confirm</button>
@@ -55,7 +62,9 @@ import { StaffHeaderComponent } from './staff-header.component';
               <span class="t">#{{ i + 1 }}</span>
               <div class="p-spacer"><b>{{ b.clients?.name ?? b.guest_name }}</b>
                 <div class="p-muted p-small">{{ names(b) }} · {{ waited(b) }} min</div></div>
-              <span class="p-badge {{ b.status === 'waiting' ? 'wait' : 'info' }}">{{ b.status === 'waiting' ? 'Waiting' : 'With ' + stylist(b) }}</span>
+              @if (b.status === 'waiting') {
+                <button class="p-btn small" [class.ghost]="!!stylist(b)" (click)="assigning.set(b)" data-testid="queue-assign">{{ stylist(b) ? 'For ' + stylist(b) : 'Assign' }}</button>
+              } @else { <span class="p-badge info">With {{ stylist(b) }}</span> }
             </div>
           } @empty { <div class="p-muted p-small" style="padding:8px 0">Nobody waiting.</div> }
         </div>
@@ -67,11 +76,13 @@ import { StaffHeaderComponent } from './staff-header.component';
             <div class="p-spacer"><b>{{ b.clients?.name ?? b.guest_name }}</b>
               <div class="p-muted p-small">{{ names(b) }} · {{ value(b) | ksh }} · {{ stylist(b) || 'any stylist' }}</div></div>
             @if (b.status === 'in_progress') { <button class="p-btn small" (click)="checkout(b)">Checkout</button> }
+            @else if (!stylist(b) && ['pending', 'booked'].includes(b.status)) { <button class="p-btn small" (click)="assigning.set(b)">Assign</button> }
             @else { <span class="p-badge {{ status(b).tone }}">{{ status(b).label }}</span> }
           </div>
         } @empty { <div class="p-empty">No bookings today.</div> }
       </div>
     </ion-content>
+    <app-assign-sheet [booking]="assigning()" (closed)="assigning.set(null)" (done)="assigning.set(null); load()" />
   `,
 })
 export class DeskPage implements ViewWillEnter, ViewWillLeave {
@@ -83,6 +94,8 @@ export class DeskPage implements ViewWillEnter, ViewWillLeave {
   readonly queue = signal<Booking[]>([]);
   readonly day = signal<Booking[]>([]);
   readonly takings = signal(0);
+  readonly assigning = signal<Booking | null>(null);
+  readonly board = computed(() => [...this.day(), ...this.queue()]);
   readonly now = signal(Date.now());
   private timer?: ReturnType<typeof setInterval>;
   readonly waiting = computed(() => this.queue().filter((b) => b.status === 'waiting'));
@@ -95,7 +108,7 @@ export class DeskPage implements ViewWillEnter, ViewWillLeave {
     return STATUS[b.status] ?? { label: b.status, tone: 'info' };
   }
   stylist(b: Booking) {
-    return (b.booking_staff ?? []).map((s) => s.staff?.name?.split(' ')[0]).filter(Boolean).join(' & ');
+    return crewNames(b, true);
   }
   waited(b: Booking) {
     return Math.max(0, Math.round((this.now() - new Date(b.created_at).getTime()) / 60000));

@@ -3,8 +3,11 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import {
   Booking, BookingService, BookingStatus, Category, Client, Course, Debt, PaymentInput, Product, Report,
-  Service, Staff, StaffBalance, Student, Variant,
+  Service, Staff, StaffBalance, StaffRoleDef, Student, Variant,
 } from './models';
+
+/** Staff columns the app may read (never the password hash). */
+const STAFF_COLUMNS = 'id, name, phone, roles, basic_salary, payout_schedule, active, created_at, email, photo, specialty, account_status';
 
 /** Single gateway to Supabase. Every page talks to the database through here. */
 @Injectable({ providedIn: 'root' })
@@ -18,6 +21,7 @@ export class DataService {
 
   /** Shared reference data, loaded once and refreshed after edits. */
   readonly staff = signal<Staff[]>([]);
+  readonly roles = signal<StaffRoleDef[]>([]);
   readonly categories = signal<Category[]>([]);
   readonly services = signal<Service[]>([]);
   readonly products = signal<Product[]>([]);
@@ -55,14 +59,16 @@ export class DataService {
 
   // ---------- reference data ----------
   async loadReference(): Promise<void> {
-    const [staff, cats, services, products, courses, settings] = await Promise.all([
-      this.run<Staff[]>(this.db.from('staff').select('*').order('name')),
+    const [staff, cats, services, products, courses, settings, roles] = await Promise.all([
+      this.run<Staff[]>(this.db.from('staff').select(STAFF_COLUMNS).order('name')),
       this.run<Category[]>(this.db.from('service_categories').select('*').order('sort')),
       this.run<Service[]>(this.db.from('services').select('*, service_variants(*)').order('sort').order('name')),
       this.run<Product[]>(this.db.from('products').select('*').order('name')),
       this.run<Course[]>(this.db.from('courses').select('*').order('name')),
       this.run<{ key: string; value: unknown }[]>(this.db.from('settings').select('*')),
+      this.loadRoles(),
     ]);
+    this.roles.set(roles);
     services.forEach((s) => s.service_variants?.sort((a, b) => a.sort - b.sort));
     this.staff.set(staff);
     this.categories.set(cats);
@@ -84,7 +90,15 @@ export class DataService {
 
   // ---------- staff ----------
   async saveStaff(s: Partial<Staff>) {
-    await this.run(s.id ? this.db.from('staff').update(s).eq('id', s.id) : this.db.from('staff').insert(s));
+    if (s.id) {
+      // roles only through the owner-only function; other account fields are never written directly
+      const { id, name, phone, basic_salary, payout_schedule, active, roles } = s;
+      await this.run(this.db.from('staff').update({ name, phone, basic_salary, payout_schedule, active }).eq('id', id));
+      if (roles) await this.run(this.db.rpc('staff_set_roles', { p_token: localStorage.getItem('dbh.staff.token'), p_id: id, p_roles: roles }));
+    } else {
+      const { name, phone, basic_salary, payout_schedule, active, roles } = s;
+      await this.run(this.db.from('staff').insert({ name, phone, basic_salary, payout_schedule, active, roles }));
+    }
     await this.loadReference();
   }
   staffBalances() {
@@ -158,7 +172,7 @@ export class DataService {
 
   // ---------- bookings ----------
   private readonly bookingSelect =
-    '*, clients(name, phone), booking_services(*), booking_staff(staff_id, staff(name)), payments(amount, kind)';
+    '*, clients(name, phone), booking_services(*), booking_staff(staff_id, part, staff(name)), payments(amount, kind)';
 
   bookingsBetween(fromIso: string, toIso: string) {
     return this.run<Booking[]>(
@@ -231,18 +245,36 @@ export class DataService {
         services.map((s) => ({ booking_id: saved.id, service_id: s.service_id, variant_id: s.variant_id, name: s.name, price: s.price })),
       ));
     }
-    await this.run(this.db.from('booking_staff').delete().eq('booking_id', saved.id));
+    await this.run(this.db.from('booking_staff').delete().eq('booking_id', saved.id).eq('part', 'main'));
     if (staffIds.length) {
       await this.run(this.db.from('booking_staff').insert(staffIds.map((id) => ({ booking_id: saved.id, staff_id: id }))));
     }
     return saved.id;
   }
+  /** Check a client in (start). Before the booking day a reason is needed; the booking then moves to today. */
+  startBooking(id: string, reason: string | null = null) {
+    return this.run<{ id: string; status: string; moved: boolean }>(this.db.rpc('start_booking', { p_id: id, p_reason: reason }));
+  }
   setBookingStatus(id: string, status: BookingStatus, extra: Partial<Booking> = {}) {
     return this.run(this.db.from('bookings').update({ status, ...extra }).eq('id', id));
   }
-  async setBookingStaff(id: string, staffIds: string[]) {
+  /** Roles (jobs) and the screens each can open. */
+  loadRoles() {
+    return this.run<StaffRoleDef[]>(this.db.from('staff_roles').select('*').order('sort'));
+  }
+  async refreshRoles() {
+    this.roles.set(await this.loadRoles());
+  }
+  /** Name of a role key, e.g. finisher → Finisher */
+  roleName(key: string | null | undefined): string {
+    return this.roles().find((r) => r.key === key)?.name ?? (key ? key.charAt(0).toUpperCase() + key.slice(1) : '');
+  }
+  /** Main stylist(s) and an optional finisher on a booking. */
+  async setBookingStaff(id: string, staffIds: string[], finisherIds: string[] = []) {
     await this.run(this.db.from('booking_staff').delete().eq('booking_id', id));
-    if (staffIds.length) await this.run(this.db.from('booking_staff').insert(staffIds.map((s) => ({ booking_id: id, staff_id: s }))));
+    const rows = [...staffIds.map((s) => ({ booking_id: id, staff_id: s, part: 'main' })),
+      ...finisherIds.filter((f) => !staffIds.includes(f)).map((s) => ({ booking_id: id, staff_id: s, part: 'finisher' }))];
+    if (rows.length) await this.run(this.db.from('booking_staff').insert(rows));
   }
   addDeposit(bookingId: string, p: PaymentInput) {
     return this.run<number>(this.db.rpc('add_deposit', {

@@ -5,7 +5,7 @@ import { addIcons } from 'ionicons';
 import {
   barChartOutline, calendarOutline, cashOutline, checkmarkDoneOutline, cutOutline, peopleOutline, personCircleOutline,
   phonePortraitOutline, pricetagsOutline, receiptOutline, schoolOutline, settingsOutline, speedometerOutline, sunnyOutline,
-  walletOutline, mailOutline, storefrontOutline,
+  walletOutline, mailOutline, storefrontOutline, keyOutline,
 } from 'ionicons/icons';
 import { StaffAuthService } from '../core/staff-auth.service';
 import { StaffHeaderComponent } from './staff-header.component';
@@ -17,7 +17,7 @@ export interface Module { title: string; sub: string; url: string; icon: string;
 addIcons({
   speedometerOutline, storefrontOutline, sunnyOutline, calendarOutline, mailOutline, cashOutline, receiptOutline, peopleOutline,
   walletOutline, cutOutline, pricetagsOutline, personCircleOutline, schoolOutline, checkmarkDoneOutline, barChartOutline,
-  settingsOutline, phonePortraitOutline,
+  settingsOutline, phonePortraitOutline, keyOutline,
 });
 
 export const MODULES: Module[] = [
@@ -35,6 +35,7 @@ export const MODULES: Module[] = [
   { title: 'Team', sub: 'commission', url: '/staff-list', icon: 'person-circle-outline', area: 'team', group: 'Salon' },
   { title: 'Students', sub: '& fees', url: '/school', icon: 'school-outline', area: 'school', group: 'School & owner' },
   { title: 'Staff', sub: 'requests', url: '/staff-requests', icon: 'checkmark-done-outline', area: 'staff-requests', group: 'School & owner' },
+  { title: 'Roles', sub: '& screens', url: '/roles', icon: 'key-outline', area: 'roles', group: 'School & owner' },
   { title: 'Reports', sub: 'all', url: '/reports', icon: 'bar-chart-outline', area: 'reports', group: 'School & owner' },
   { title: 'Settings', sub: 'rules, hours', url: '/settings', icon: 'settings-outline', area: 'settings', group: 'School & owner' },
   { title: 'Client app', sub: 'preview', url: '/portal', icon: 'phone-portrait-outline', area: 'me', group: 'School & owner' },

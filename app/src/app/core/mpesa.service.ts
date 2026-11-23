@@ -31,6 +31,13 @@ export class MpesaService {
   readonly simulation = environment.simulate;
 
   start(r: StkRequest) {
+    // test mode: simulated prompt straight from the database; live: the mpesa-stk function calls Safaricom
+    if (this.simulation) {
+      return this.data.rpc<StkStarted>('stk_test_start', {
+        p_purpose: r.purpose, p_phone: r.phone, p_amount: r.amount,
+        p_booking_id: r.booking_id ?? null, p_sale_id: r.sale_id ?? null, p_student_id: r.student_id ?? null,
+      });
+    }
     return this.data.invoke<StkStarted>('mpesa-stk', { ...r });
   }
   status(id: string) {
@@ -38,7 +45,7 @@ export class MpesaService {
   }
   /** Simulation only: answer the prompt as if on the phone. */
   simulate(checkoutRequestId: string, outcome: SimOutcome) {
-    return this.data.invoke<{ status: StkState }>('mpesa-simulate', { checkout_request_id: checkoutRequestId, outcome });
+    return this.data.rpc<{ status: StkState }>('stk_test_answer', { p_checkout_request_id: checkoutRequestId, p_outcome: outcome });
   }
 
   /** Poll until the request is answered (or the timeout passes). */

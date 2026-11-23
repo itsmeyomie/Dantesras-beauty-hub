@@ -1,14 +1,21 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { DataService } from './data.service';
 
-export type StaffRole = 'owner' | 'manager' | 'receptionist' | 'stylist';
+/** Built-in roles; the owner can also create others (e.g. finisher). */
+export type StaffRole = string;
 export interface StaffMe {
   id: string; name: string; email: string | null; phone: string | null; roles: string[]; photo: string | null;
   specialty: string | null; account_status: 'none' | 'pending' | 'approved' | 'declined'; wanted_role: string | null;
   active: boolean; requested_at: string | null; decline_reason: string | null;
+  /** screens this person can open (from all their roles) */
+  areas?: string[];
 }
+/** Screens everyone signed in can open. */
+const ALWAYS = ['me', 'more'];
+/** Screens only the owner can open. */
+const OWNER_ONLY = ['settings', 'staff-requests', 'roles'];
 
-/** Which roles may open each staff area (route `data.area`). Owner can open everything. */
+/** Starting screens of the built-in roles (the owner can change them under Roles). Used if the server sends no list. */
 export const ACCESS: Record<string, StaffRole[]> = {
   dashboard: ['owner', 'manager'],
   bookings: ['owner', 'manager', 'receptionist', 'stylist'],
@@ -41,30 +48,32 @@ export class StaffAuthService {
   readonly me = signal<StaffMe | null>(null);
   readonly signedIn = computed(() => !!this.token());
 
-  /** Main role: owner > manager > receptionist > stylist */
+  /** Main role: owner > manager > receptionist > stylist > any other role */
   readonly role = computed<StaffRole | null>(() => {
     const r = this.me()?.roles ?? [];
-    return r.includes('owner') ? 'owner' : r.includes('manager') ? 'manager' : r.includes('receptionist') ? 'receptionist' : r.includes('stylist') ? 'stylist' : null;
+    return ['owner', 'manager', 'receptionist', 'stylist'].find((k) => r.includes(k)) ?? r.find((k) => k !== 'tutor') ?? r[0] ?? null;
   });
   readonly firstName = computed(() => (this.me()?.name ?? '').split(' ')[0]);
-  readonly roleLabel = computed(() => ({ owner: 'Owner', manager: 'Manager', receptionist: 'Receptionist', stylist: 'Stylist' })[this.role() ?? 'stylist']);
+  readonly roleLabel = computed(() => this.data.roleName(this.role()) || 'Staff');
 
   /** May the signed-in person open this area? */
   can(area: string): boolean {
     const me = this.me();
     if (!me) return false;
-    if (me.roles.includes('owner')) return true;
+    if (me.roles.includes('owner') || ALWAYS.includes(area)) return true;
+    if (OWNER_ONLY.includes(area)) return false;
+    if (me.areas) return me.areas.includes(area);
     const allowed = ACCESS[area];
     if (!allowed) return true;
     return allowed.some((r) => me.roles.includes(r));
   }
-  /** Where each role lands after signing in */
+  /** Where a person lands after signing in: their main screen */
   home(): string {
-    switch (this.role()) {
-      case 'owner': case 'manager': return '/dashboard';
-      case 'receptionist': return '/desk';
-      default: return '/my-day';
-    }
+    if (this.can('dashboard')) return '/dashboard';
+    if (this.can('desk')) return '/desk';
+    if (this.can('my-day')) return '/my-day';
+    const first = ['bookings', 'checkout', 'clients', 'sales', 'school', 'reports'].find((a) => this.can(a));
+    return first ? '/' + first : '/me';
   }
 
   private call<T>(fn: string, args: Record<string, unknown>) {
@@ -135,6 +144,15 @@ export class StaffAuthService {
   }
   decline(id: string, reason: string) {
     return this.authed<void>('staff_decline', { p_id: id, p_reason: reason });
+  }
+  async saveRole(p: { key?: string; name: string; areas: string[]; serves: boolean; finishes: boolean }) {
+    const r = await this.authed<unknown>('staff_role_save', { p });
+    await this.data.refreshRoles();
+    return r;
+  }
+  async deleteRole(key: string) {
+    await this.authed<void>('staff_role_delete', { p_key: key });
+    await this.data.refreshRoles();
   }
 }
 

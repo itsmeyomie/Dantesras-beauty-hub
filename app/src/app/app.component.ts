@@ -2,13 +2,13 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { IonApp, IonContent, IonIcon, IonMenu, IonMenuToggle, IonRouterOutlet, IonSplitPane } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { calendarOutline, cashOutline, logOutOutline, peopleOutline, personOutline, sparklesOutline, speedometerOutline, storefrontOutline, appsOutline, walletOutline, sunnyOutline } from 'ionicons/icons';
+import { barChartOutline, calendarOutline, cashOutline, logOutOutline, peopleOutline, personOutline, schoolOutline, sparklesOutline, speedometerOutline, storefrontOutline, appsOutline, walletOutline, sunnyOutline } from 'ionicons/icons';
 import { DataService } from './core/data.service';
 import { StaffAuthService } from './core/staff-auth.service';
 import { Ui } from './core/ui';
 import { MODULES } from './staff/more.page';
 
-interface Tab { label: string; url: string; icon: string; query?: Record<string, string>; }
+interface Tab { label: string; url: string; icon: string; query?: Record<string, string>; area?: string; }
 
 /** Bottom tabs per role (phones). Everything else is under More. */
 const TABS: Record<string, Tab[]> = {
@@ -29,6 +29,25 @@ const TABS: Record<string, Tab[]> = {
   ],
 };
 TABS['manager'] = TABS['owner'];
+
+/** Tabs for roles the owner created, in order of importance; each shows only if the role has that screen. */
+const ANY_TABS: Tab[] = [
+  { label: 'Home', url: '/dashboard', icon: 'speedometer-outline', area: 'dashboard' },
+  { label: 'Desk', url: '/desk', icon: 'storefront-outline', area: 'desk' },
+  { label: 'Today', url: '/my-day', icon: 'sunny-outline', area: 'my-day' },
+  { label: 'Bookings', url: '/bookings', icon: 'calendar-outline', area: 'bookings' },
+  { label: 'Checkout', url: '/checkout', icon: 'cash-outline', area: 'checkout' },
+  { label: 'Clients', url: '/clients', icon: 'people-outline', area: 'clients' },
+  { label: 'Earnings', url: '/my-earnings', icon: 'wallet-outline', area: 'my-day' },
+  { label: 'Sales', url: '/sales', icon: 'cash-outline', area: 'sales' },
+  { label: 'Students', url: '/school', icon: 'school-outline', area: 'school' },
+  { label: 'Team', url: '/staff-list', icon: 'people-outline', area: 'team' },
+  { label: 'Reports', url: '/reports', icon: 'bar-chart-outline', area: 'reports' },
+];
+const AREA_OF: Record<string, string> = {
+  '/dashboard': 'dashboard', '/desk': 'desk', '/my-day': 'my-day', '/my-calendar': 'my-day', '/my-earnings': 'my-day', '/bookings': 'bookings',
+  '/checkout': 'checkout', '/clients': 'clients', '/staff-list': 'team', '/sales': 'sales', '/school': 'school', '/reports': 'reports', '/more': 'more', '/me': 'me',
+};
 
 @Component({
   selector: 'app-root',
@@ -104,7 +123,17 @@ export class AppComponent implements OnInit {
     const u = this.url();
     return u === '/' || u.startsWith('/portal') ? 'portal' : u.startsWith('/staff/sign-in') ? 'auth' : 'staff';
   });
-  readonly tabs = computed(() => TABS[this.auth.role() ?? 'stylist'] ?? TABS['stylist']);
+  /** The role's usual tabs, minus screens it can't open, topped up from its other screens. Always ends with More. */
+  readonly tabs = computed(() => {
+    this.auth.me();
+    const base = (TABS[this.auth.role() ?? ''] ?? []).filter((t) => t.url !== '/more' && t.url !== '/me' && this.auth.can(AREA_OF[t.url] ?? 'me'));
+    for (const t of ANY_TABS) {
+      if (base.length >= 4) break;
+      if (!base.some((b) => b.url === t.url) && this.auth.can(t.area!)) base.push(t);
+    }
+    const last = TABS[this.auth.role() ?? '']?.at(-1);
+    return [...base, last?.url === '/me' ? last : { label: 'More', url: '/more', icon: 'apps-outline' }];
+  });
   readonly groups = computed(() => {
     this.auth.me();
     const visible = MODULES.filter((m) => m.area !== 'me' && this.auth.can(m.area));
@@ -112,7 +141,7 @@ export class AppComponent implements OnInit {
   });
 
   constructor() {
-    addIcons({ speedometerOutline, calendarOutline, cashOutline, peopleOutline, appsOutline, storefrontOutline, sunnyOutline, walletOutline, personOutline, sparklesOutline, logOutOutline });
+    addIcons({ barChartOutline, schoolOutline, speedometerOutline, calendarOutline, cashOutline, peopleOutline, appsOutline, storefrontOutline, sunnyOutline, walletOutline, personOutline, sparklesOutline, logOutOutline });
     window.addEventListener('resize', () => this.wide.set(window.innerWidth >= 992));
   }
 

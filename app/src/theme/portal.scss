@@ -398,3 +398,34 @@ textarea.p-input { min-height: 84px; resize: vertical; }
 
 .p-chip, a.p-chip { text-decoration: none; display: inline-flex; align-items: center; }
 .sb.portal { background: transparent; }
+
+// ---------- Team now (free / occupied) and Assign stylist ----------
+.p-team { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 10px 4px; padding: 12px 2px 4px; }
+.p-team::-webkit-scrollbar { display: none; }
+.p-team-m { min-width: 0; border: 0; background: none; padding: 4px 0; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--p-ink); text-align: center; }
+.p-team-m .ph, .p-assign .ph { width: 54px; height: 54px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; overflow: hidden;
+  background: var(--p-maroon); color: var(--p-gold-soft); font: 700 1.2rem 'Playfair Display', serif; box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--ring, #2e8b57); }
+.p-team-m .ph img, .p-assign .ph img { width: 100%; height: 100%; object-fit: cover; }
+.p-team-m.busy, .p-assign.busy { --ring: #c9a227; }
+.p-team-m.chair, .p-assign.chair { --ring: #9b1c1c; }
+.p-team-m .n { display: block; font-weight: 600; font-size: .8rem; margin-top: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-team-m .s { display: block; font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #1e6b34; }
+.p-team-m.busy .s { color: #8a5a00; }
+.p-team-m.chair .s { color: #9b1c1c; }
+.p-team-m.on .n { color: var(--p-maroon); text-decoration: underline; text-underline-offset: 3px; }
+.p-team-day { border-top: 1px solid var(--p-line); margin-top: 8px; padding-top: 10px; }
+.p-assign { width: 100%; display: flex; align-items: center; gap: 14px; text-align: left; border: 1.5px solid var(--p-line); background: #fff;
+  border-radius: 18px; padding: 10px 12px 10px 14px; margin-bottom: 8px; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--p-ink); }
+.p-assign .ph { width: 46px; height: 46px; margin: 0; flex: 0 0 46px; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--ring, #2e8b57); font-size: 1rem; }
+.p-assign.busy, .p-assign.chair { background: #fdfaf6; }
+.p-assign.busy b, .p-assign.chair b { color: var(--p-muted); }
+.p-assign.on { border-color: var(--p-maroon); box-shadow: 0 0 0 2px var(--p-maroon) inset; }
+.p-assign .p-badge { flex: 0 1 auto; max-width: 48%; text-align: right; white-space: normal; line-height: 1.25; }
+
+// ---------- checkbox rows (Roles screen) ----------
+.p-check { display: flex; align-items: flex-start; gap: 12px; background: #fff; border: 1.5px solid var(--p-line); border-radius: 16px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; }
+.p-check input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--p-maroon); flex: 0 0 20px; }
+.p-check b { display: block; font-size: .92rem; }
+.p-check small { display: block; color: var(--p-muted); font-size: .78rem; margin-top: 2px; }
+.p-check:has(input:checked) { border-color: var(--p-maroon); background: #fffaf7; }
+.p-team-m .f { display: block; font-size: .6rem; color: var(--p-muted); margin-top: -1px; }

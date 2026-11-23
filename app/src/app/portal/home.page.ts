@@ -131,7 +131,7 @@ const CAT_ICONS: Record<string, string> = {
           </div>
         </div>
 
-        <a class="p-staff-link" routerLink="/dashboard">Staff area</a>
+        <a class="p-staff-link" routerLink="/staff/sign-in">Staff sign-in</a>
       </div>
     </ion-content>
     <app-portal-tabs />

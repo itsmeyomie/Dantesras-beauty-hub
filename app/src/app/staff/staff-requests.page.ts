@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { DataService } from '../core/data.service';
 import { IonContent, ViewWillEnter } from '@ionic/angular';
 import { StaffAuthService, StaffMe } from '../core/staff-auth.service';
 import { Ui } from '../core/ui';
@@ -33,7 +34,7 @@ import { StaffHeaderComponent } from './staff-header.component';
             </div>
             <div class="p-kicker" style="color:var(--p-muted);margin:12px 2px 6px">Give role</div>
             <div class="p-pills">
-              @for (r of roles; track r) {
+              @for (r of roles(); track r) {
                 <button class="p-chip" [class.on]="roleFor(s) === r" (click)="setRole(s, r)" [attr.data-role]="r">{{ label(r) }}</button>
               }
             </div>
@@ -53,10 +54,12 @@ import { StaffHeaderComponent } from './staff-header.component';
 export class StaffRequestsPage implements ViewWillEnter {
   private auth = inject(StaffAuthService);
   private ui = inject(Ui);
+  private data = inject(DataService);
   readonly list = signal<StaffMe[]>([]);
   readonly tab = signal<'pending' | 'declined'>('pending');
   readonly chosen = signal<Record<string, string>>({});
-  readonly roles = ['stylist', 'receptionist', 'manager'];
+  /** every role except owner (and tutor, which is given on the Team screen) */
+  readonly roles = computed(() => this.data.roles().map((r) => r.key).filter((k) => k !== 'owner' && k !== 'tutor'));
   readonly pending = computed(() => this.list().filter((s) => s.account_status === 'pending'));
   readonly declined = computed(() => this.list().filter((s) => s.account_status === 'declined'));
   readonly shown = computed(() => (this.tab() === 'pending' ? this.pending() : this.declined()));
@@ -72,7 +75,7 @@ export class StaffRequestsPage implements ViewWillEnter {
     }
   }
   label(r?: string | null) {
-    return r === 'manager' ? 'Manager' : r === 'receptionist' ? 'Receptionist' : 'Stylist';
+    return this.data.roleName(r || 'stylist');
   }
   initials(n: string) {
     return n.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0].toUpperCase()).join('');
