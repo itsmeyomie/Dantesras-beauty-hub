@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "668171584511",
+    "project_id": "dantesras-c96fb",
+    "storage_bucket": "dantesras-c96fb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:668171584511:android:529664d14daabebf24ddca",
+        "android_client_info": {
+          "package_name": "ke.dantesras.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTaNUQLSnuCVgXlA77I2euCDTEVNxjIAs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
