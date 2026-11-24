@@ -104,3 +104,20 @@ export async function loginAs(page: Page, request: APIRequestContext, role: Staf
     if (!sessionStorage.getItem('e2e.signedOut')) localStorage.setItem('dbh.staff.token', t);
   }, body.token);
 }
+
+// ---------- direct database access for test set-up, signed in as the owner ----------
+// (the database refuses anonymous writes since the role lock-down)
+let ownerToken: string | null = null;
+type Opts = { data?: unknown; headers?: Record<string, string> };
+export async function ownerApi(request: APIRequestContext) {
+  if (!ownerToken) {
+    const r = await request.post('http://localhost:54329/rest/v1/rpc/staff_login', { data: { p_email: STAFF.owner, p_password: 'test1234' } });
+    ownerToken = (await r.json()).token as string;
+  }
+  const h = (o: Opts = {}) => ({ ...o, headers: { ...(o.headers ?? {}), 'x-staff-token': ownerToken! } });
+  return {
+    post: (url: string, o?: Opts) => request.post(url, h(o)),
+    get: (url: string, o?: Opts) => request.get(url, h(o)),
+    patch: (url: string, o?: Opts) => request.patch(url, h(o)),
+  };
+}

@@ -7,4 +7,7 @@ export const environment = {
   supabaseAnonKey: 'local-dev',
   /** Show simulated M-Pesa prompts and one-time codes on screen (no Daraja / SMS account yet). */
   simulate: true,
+  /** true = client sign-in codes are shown on screen and "Google" is simulated (test mode).
+   *  false = real email codes and Google through Supabase Auth (set up the free accounts first – docs/free-setup.md). */
+  simulateSignIn: true,
 };

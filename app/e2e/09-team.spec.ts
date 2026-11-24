@@ -1,5 +1,5 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
-import { loginAs, toast, view } from './helpers';
+import { loginAs, toast, view, ownerApi } from './helpers';
 
 // Free / occupied team board and giving work to a stylist based on who is free.
 
@@ -8,13 +8,13 @@ const H = { Prefer: 'return=representation' };
 const at = (min: number) => new Date(Date.now() + min * 60000).toISOString();
 
 async function addStylist(request: APIRequestContext, name: string): Promise<string> {
-  const r = await request.post(`${API}/staff`, { headers: H, data: { name, roles: ['stylist'], active: true } });
+  const r = await (await ownerApi(request)).post(`${API}/staff?select=id`, { headers: H, data: { name, roles: ['stylist'], active: true } });
   return (await r.json())[0].id;
 }
 async function addBooking(request: APIRequestContext, data: Record<string, unknown>, staffId?: string): Promise<string> {
-  const r = await request.post(`${API}/bookings`, { headers: H, data: { channel: 'salon', duration_min: 60, ...data } });
+  const r = await (await ownerApi(request)).post(`${API}/bookings`, { headers: H, data: { channel: 'salon', duration_min: 60, ...data } });
   const id = (await r.json())[0].id;
-  if (staffId) await request.post(`${API}/booking_staff`, { data: { booking_id: id, staff_id: staffId } });
+  if (staffId) await (await ownerApi(request)).post(`${API}/booking_staff`, { data: { booking_id: id, staff_id: staffId } });
   return id;
 }
 

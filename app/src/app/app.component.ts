@@ -7,6 +7,7 @@ import { DataService } from './core/data.service';
 import { StaffAuthService } from './core/staff-auth.service';
 import { Ui } from './core/ui';
 import { MODULES } from './staff/more.page';
+import { APP_AUTH_CALLBACK } from './portal/portal.service';
 
 interface Tab { label: string; url: string; icon: string; query?: Record<string, string>; area?: string; }
 
@@ -149,12 +150,26 @@ export class AppComponent implements OnInit {
     this.router.events.subscribe((e) => {
       if (e instanceof NavigationEnd) this.url.set(e.urlAfterRedirects.split('?')[0]);
     });
+    void this.listenForAppLinks();
     if (!this.data.configured) return;
     try {
       await this.data.loadReference();
     } catch (e) {
       this.ui.error(e);
     }
+  }
+  /** Android app: Google sign-in comes back as ke.dantesras.app://auth-callback?code=… */
+  private async listenForAppLinks() {
+    const { Capacitor } = await import('@capacitor/core');
+    if (!Capacitor.isNativePlatform()) return;
+    const { App } = await import('@capacitor/app');
+    await App.addListener('appUrlOpen', async ({ url }) => {
+      if (!url.startsWith(APP_AUTH_CALLBACK)) return;
+      const code = new URL(url.replace(/^[a-z.]+:\/\//, 'https://x/')).searchParams.get('code');
+      const { Browser } = await import('@capacitor/browser');
+      await Browser.close().catch(() => undefined);
+      if (code) void this.router.navigate(['/portal/sign-in'], { queryParams: { code } });
+    });
   }
   async signOut() {
     await this.auth.logout();

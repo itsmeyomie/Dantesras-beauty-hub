@@ -29,3 +29,7 @@ dist/*.zip
 .DS_Store
 Thumbs.db
 *.log
+
+# Android release signing (keep a safe copy OUTSIDE the repo – needed for every app update)
+app/android/keystore/
+app/android/keystore.properties

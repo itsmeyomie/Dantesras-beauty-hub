@@ -6,6 +6,16 @@ import {
   Service, Staff, StaffBalance, StaffRoleDef, Student, Variant,
 } from './models';
 
+/** Adds the staff sign-in token (saved by StaffAuthService) to every database request. */
+const staffFetch: typeof fetch = (input, init = {}) => {
+  let token: string | null = null;
+  try { token = localStorage.getItem('dbh.staff.token'); } catch { /* private mode */ }
+  if (!token) return fetch(input, init);
+  const headers = new Headers(init.headers);
+  headers.set('x-staff-token', token);
+  return fetch(input, { ...init, headers });
+};
+
 /** Staff columns the app may read (never the password hash). */
 const STAFF_COLUMNS = 'id, name, phone, roles, basic_salary, payout_schedule, active, created_at, email, photo, specialty, account_status';
 
@@ -16,7 +26,11 @@ export class DataService {
   private readonly db: SupabaseClient = createClient(
     this.configured ? environment.supabaseUrl : 'https://placeholder.supabase.co',
     this.configured ? environment.supabaseAnonKey : 'placeholder',
-    { auth: { persistSession: false, autoRefreshToken: false } },
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+      // every request carries the staff sign-in token (if any); the database checks it and the role's screens
+      global: { fetch: staffFetch },
+    },
   );
 
   /** Shared reference data, loaded once and refreshed after edits. */
@@ -33,6 +47,53 @@ export class DataService {
     const { data, error } = await q;
     if (error) throw new Error(error.message);
     return data as T;
+  }
+
+  // ---------- client sign-in through Supabase Auth (email code / Google) ----------
+  private authClient?: SupabaseClient;
+  /** Separate client that keeps the short Supabase Auth sign-in (needed for the Google redirect). */
+  private get auth(): SupabaseClient {
+    this.authClient ??= createClient(environment.supabaseUrl, environment.supabaseAnonKey, {
+      auth: { persistSession: true, autoRefreshToken: false, detectSessionInUrl: false, flowType: 'pkce', storageKey: 'dbh.client-auth' },
+    });
+    return this.authClient;
+  }
+  private authError(e: { message: string }): Error {
+    const m = e.message;
+    if (/expired|invalid/i.test(m) && /token|otp/i.test(m)) return new Error('Wrong or expired code. Check the email or ask for a new one.');
+    if (/rate limit|security purposes|seconds/i.test(m)) return new Error('Please wait a minute before asking for another code.');
+    if (/Failed to fetch|network/i.test(m)) return new Error('No connection to the server. Check the internet and try again.');
+    return new Error(m);
+  }
+  /** Email a 6-digit sign-in code. */
+  async authEmailCode(email: string) {
+    const { error } = await this.auth.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+    if (error) throw this.authError(error);
+  }
+  /** Check the emailed code, then open the client's session. */
+  async authVerifyEmail(email: string, code: string) {
+    const { error } = await this.auth.auth.verifyOtp({ email, token: code, type: 'email' });
+    if (error) throw this.authError(error);
+    return this.portalFromAuth();
+  }
+  /** Address of Google's sign-in page; Google sends the client back to redirectTo with a code. */
+  async authGoogleUrl(redirectTo: string): Promise<string> {
+    const { data, error } = await this.auth.auth.signInWithOAuth({ provider: 'google', options: { redirectTo, skipBrowserRedirect: true } });
+    if (error || !data.url) throw this.authError(error ?? { message: 'Google sign-in is not available' });
+    return data.url;
+  }
+  /** Back from Google with ?code=… */
+  async authFinishGoogle(code: string) {
+    const { error } = await this.auth.auth.exchangeCodeForSession(code);
+    if (error) throw this.authError(error);
+    return this.portalFromAuth();
+  }
+  private async portalFromAuth() {
+    try {
+      return await this.run<{ token: string; is_new: boolean; client_id: string }>(this.auth.rpc('portal_from_auth', {}));
+    } finally {
+      await this.auth.auth.signOut({ scope: 'local' }).catch(() => undefined); // the salon session takes over
+    }
   }
 
   /** Call a database function directly. */

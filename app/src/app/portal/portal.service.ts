@@ -2,8 +2,12 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { DataService } from '../core/data.service';
+import { NotifyService } from '../core/notify.service';
 
 export type OtpChannel = 'sms' | 'whatsapp' | 'email';
+/** Where Google sends the client back in the Android app (also listed in AndroidManifest.xml and Supabase → Auth → URL configuration). */
+export const APP_AUTH_CALLBACK = 'ke.dantesras.app://auth-callback';
+const RETURN_KEY = 'dbh.signin.return';
 
 export interface PVariant { id: string; name: string; price: number; }
 export interface PService { id: string; name: string; price: number; price_type: 'fixed' | 'range' | 'from'; max_price: number | null; variants: PVariant[]; }
@@ -60,8 +64,11 @@ function writeStore(key: string, value: string | null, session = false) {
 @Injectable({ providedIn: 'root' })
 export class PortalService {
   private data = inject(DataService);
+  private notify = inject(NotifyService);
   private router = inject(Router);
   readonly simulation = environment.simulate;
+  /** test mode for client sign-in: code on screen, simulated Google */
+  readonly simulatedSignIn = environment.simulateSignIn;
 
   readonly token = signal<string | null>(readStore(TOKEN_KEY));
   readonly me = signal<Me | null>(null);
@@ -108,16 +115,46 @@ export class PortalService {
     return v === undefined || v === null || v === '' ? fallback : (v as T);
   }
 
-  // ---------- sign-in ----------
-  requestCode(channel: OtpChannel, address: string) {
-    type Sent = { sent: boolean; to: string; simulated: boolean; dev_code?: string };
-    // test mode: the database hands out the code (shown on screen); live: the portal-otp function sends it
-    return this.simulation
-      ? this.call<Sent>('portal_test_code', { p_channel: channel, p_address: address })
-      : this.data.invoke<Sent>('portal-otp', { channel, address });
+  // ---------- sign-in (free: email code or Google – no SMS) ----------
+  /** Send a 6-digit code by email. Test mode: the code comes back to show on screen. */
+  async requestEmailCode(email: string): Promise<{ to: string; dev_code?: string }> {
+    const address = email.trim().toLowerCase();
+    if (this.simulatedSignIn) return this.call<{ to: string; dev_code?: string }>('portal_test_code', { p_channel: 'email', p_address: address });
+    if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(address)) throw new Error('Enter a valid email address');
+    await this.data.authEmailCode(address);
+    return { to: address };
   }
-  async verify(channel: OtpChannel, address: string, code: string): Promise<{ is_new: boolean }> {
-    const r = await this.call<{ token: string; is_new: boolean }>('portal_verify_code', { p_channel: channel, p_address: address, p_code: code });
+  async verifyEmailCode(email: string, code: string): Promise<{ is_new: boolean }> {
+    const address = email.trim().toLowerCase();
+    const r = this.simulatedSignIn
+      ? await this.call<{ token: string; is_new: boolean }>('portal_verify_code', { p_channel: 'email', p_address: address, p_code: code })
+      : await this.data.authVerifyEmail(address, code);
+    return this.startSession(r);
+  }
+  /** Test mode only: "Google" without a Google account. */
+  async testGoogle(email: string, name: string) {
+    return this.startSession(await this.call<{ token: string; is_new: boolean }>('portal_test_google', { p_email: email.trim(), p_name: name.trim() }));
+  }
+  /** Go to Google. Web: this page is left and Google comes back to /portal/sign-in?code=…; Android: opens Google in the browser. */
+  async googleStart(returnUrl: string | undefined) {
+    writeStore(RETURN_KEY, returnUrl || '/portal', true);
+    const { Capacitor } = await import('@capacitor/core');
+    if (Capacitor.isNativePlatform()) {
+      const url = await this.data.authGoogleUrl(APP_AUTH_CALLBACK);
+      const { Browser } = await import('@capacitor/browser');
+      await Browser.open({ url });
+    } else {
+      location.href = await this.data.authGoogleUrl(new URL('portal/sign-in', document.baseURI).href);
+    }
+  }
+  /** Back from Google with a code. Returns where to go next. */
+  async googleFinish(code: string): Promise<{ is_new: boolean; returnUrl: string }> {
+    const r = await this.startSession(await this.data.authFinishGoogle(code));
+    const returnUrl = readStore(RETURN_KEY, true) || '/portal';
+    writeStore(RETURN_KEY, null, true);
+    return { ...r, returnUrl };
+  }
+  private async startSession(r: { token: string; is_new: boolean }): Promise<{ is_new: boolean }> {
     this.token.set(r.token);
     writeStore(TOKEN_KEY, r.token);
     await this.loadMe();
@@ -127,12 +164,14 @@ export class PortalService {
     if (!this.token()) return null;
     const me = await this.authed<Me>('portal_me');
     this.me.set(me);
+    void this.notify.register('client', this.token()!);
     return me;
   }
   async updateProfile(p: Partial<Me>) {
     this.me.set(await this.authed<Me>('portal_update_profile', { p }));
   }
   async signOut() {
+    await this.notify.unregister();
     const t = this.token();
     this.clearSession();
     if (t) await this.data.rpc('portal_sign_out', { p_token: t }).catch(() => undefined);

@@ -1,5 +1,5 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
-import { answerAlert, loginAs, toast, view } from './helpers';
+import { answerAlert, loginAs, toast, view, ownerApi } from './helpers';
 
 // Roles the owner creates (with the screens they may open) and the finisher.
 
@@ -8,13 +8,13 @@ const H = { Prefer: 'return=representation' };
 const at = (min: number) => new Date(Date.now() + min * 60000).toISOString();
 
 async function addStaff(request: APIRequestContext, name: string, roles: string[]): Promise<string> {
-  const r = await request.post(`${API}/staff`, { headers: H, data: { name, roles, active: true } });
+  const r = await (await ownerApi(request)).post(`${API}/staff?select=id`, { headers: H, data: { name, roles, active: true } });
   return (await r.json())[0].id;
 }
 async function addBooking(request: APIRequestContext, data: Record<string, unknown>, crew: { id: string; part: string }[] = []) {
-  const r = await request.post(`${API}/bookings`, { headers: H, data: { channel: 'salon', duration_min: 60, ...data } });
+  const r = await (await ownerApi(request)).post(`${API}/bookings`, { headers: H, data: { channel: 'salon', duration_min: 60, ...data } });
   const id = (await r.json())[0].id as string;
-  for (const c of crew) await request.post(`${API}/booking_staff`, { data: { booking_id: id, staff_id: c.id, part: c.part } });
+  for (const c of crew) await (await ownerApi(request)).post(`${API}/booking_staff`, { data: { booking_id: id, staff_id: c.id, part: c.part } });
   return id;
 }
 async function tokenFor(request: APIRequestContext, email: string, password: string) {
@@ -95,7 +95,7 @@ test('finisher: assigned with the main stylist, shares the commission, sees "Fin
   const fin = await addStaff(request, `Fin ${tag} Finisher`, ['finisher']);
   const guest = `Braids ${tag}`;
   const bid = await addBooking(request, { status: 'booked', scheduled_at: at(30), guest_name: guest });
-  await request.post(`${API}/booking_services`, { data: { booking_id: bid, name: 'Knotless', price: 1700 } });
+  await (await ownerApi(request)).post(`${API}/booking_services`, { data: { booking_id: bid, name: 'Knotless', price: 1700 } });
 
   // desk assigns the main stylist and the finisher
   await loginAs(page, request, 'receptionist');
@@ -122,7 +122,7 @@ test('finisher: assigned with the main stylist, shares the commission, sees "Fin
 
 test('finisher login lands on My day with jobs marked "Finish for" and no walk-in taking', async ({ page, request }) => {
   const tag = Date.now().toString(36).slice(-5);
-  const staff = await (await request.get(`${API}/staff?select=id,name&name=in.(Faith Wambui,Wanjiku Kamau)`)).json() as { id: string; name: string }[];
+  const staff = await (await (await ownerApi(request)).get(`${API}/staff?select=id,name&name=in.(Faith Wambui,Wanjiku Kamau)`)).json() as { id: string; name: string }[];
   const faith = staff.find((s) => s.name === 'Faith Wambui')!.id;
   const wanjiku = staff.find((s) => s.name === 'Wanjiku Kamau')!.id;
   const guest = `Finish Me ${tag}`;

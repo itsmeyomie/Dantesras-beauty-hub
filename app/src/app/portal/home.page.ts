@@ -10,6 +10,7 @@ import {
 import { Ui, ksh } from '../core/ui';
 import { MyBooking, PortalService, STATUS_TEXT } from './portal.service';
 import { PortalTabsComponent } from './portal-tabs.component';
+import { NotifyService } from '../core/notify.service';
 
 const CAT_ICONS: Record<string, string> = {
   'Nails': 'color-palette-outline', 'Kids Hair': 'happy-outline', 'Adult Hair': 'brush-outline',
@@ -28,8 +29,8 @@ const CAT_ICONS: Record<string, string> = {
           <a class="p-avatar" [routerLink]="p.signedIn() ? '/portal/account' : '/portal/sign-in'" aria-label="Account"><span>{{ initial() }}</span></a>
           <div class="p-icons">
             <a class="p-glass-btn" routerLink="/portal/book" aria-label="Find a service"><ion-icon name="search-outline"></ion-icon></a>
-            <a class="p-glass-btn" routerLink="/portal/bookings" aria-label="My bookings"><ion-icon name="notifications-outline"></ion-icon>
-              @if (upcoming().length) { <span class="dot-badge">{{ upcoming().length }}</span> }</a>
+            <a class="p-glass-btn" [routerLink]="p.signedIn() ? '/portal/notifications' : '/portal/sign-in'" aria-label="Notifications" data-testid="bell"><ion-icon name="notifications-outline"></ion-icon>
+              @if (notify.unread()) { <span class="dot-badge" data-testid="bell-count">{{ notify.unread() }}</span> }</a>
           </div>
         </div>
         <p class="p-hey">Hey <b>{{ p.firstName() || 'beautiful' }}</b>,</p>
@@ -139,6 +140,7 @@ const CAT_ICONS: Record<string, string> = {
 })
 export class PortalHomePage implements ViewWillEnter {
   readonly p = inject(PortalService);
+  readonly notify = inject(NotifyService);
   private ui = inject(Ui);
   private router = inject(Router);
   readonly bookings = signal<MyBooking[]>([]);
@@ -174,6 +176,7 @@ export class PortalHomePage implements ViewWillEnter {
       if (this.p.signedIn()) {
         if (!this.p.me()) await this.p.loadMe();
         this.bookings.set(await this.p.bookings());
+        void this.notify.refresh('client', this.p.token());
       } else this.bookings.set([]);
     } catch (e) {
       this.ui.error(e);

@@ -18,3 +18,8 @@ bootstrapApplication(AppComponent, {
     provideRouter(routes, withPreloading(PreloadAllModules), withComponentInputBinding()),
   ],
 });
+
+// website only (not the Android app, not local testing): lets Chrome offer "Install app"
+if ('serviceWorker' in navigator && location.protocol === 'https:' && !(window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()) {
+  navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => undefined);
+}

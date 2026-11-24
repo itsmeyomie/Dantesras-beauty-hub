@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { answerAlert, segment, toast, view, watchErrors , loginAs } from './helpers';
+import { answerAlert, segment, toast, view, watchErrors , loginAs, ownerApi } from './helpers';
 
 test.beforeEach(async ({ page, request }) => {
   await loginAs(page, request, 'owner');
 });
-import { bookSteps, bookingOffset, completeSignIn, newPhone, payPrompt, pickDay, setTime, signIn } from './portal-helpers';
+import { bookSteps, bookingOffset, completeSignIn, newPhone, payPrompt, pickDay, setTime, signIn, newEmail } from './portal-helpers';
 
 // Module 2: client app – sign-in, online booking with M-Pesa deposit, salon confirms / declines.
 
@@ -29,15 +29,15 @@ test('home: brand, services and tabs; no staff menu for clients', async ({ page 
   expect(errors).toEqual([]);
 });
 
-test('sign-in: wrong number, wrong code and too-fast resend are refused', async ({ page }) => {
+test('sign-in: wrong email, wrong code and too-fast resend are refused', async ({ page }) => {
   await page.goto('/portal/sign-in');
   const v = view(page);
-  await v.getByTestId('signin-address').fill('12345');
+  await expect(v.getByTestId('signin-google')).toBeVisible();
+  await v.getByTestId('signin-address').fill('not-an-email');
   await v.getByTestId('signin-send').click();
-  await expect(v.getByText('Enter a valid Kenyan mobile number')).toBeVisible();
+  await expect(v.getByText('Enter a valid email address')).toBeVisible();
 
-  const phone = newPhone();
-  await v.getByTestId('signin-address').fill(phone);
+  await v.getByTestId('signin-address').fill(newEmail());
   await v.getByTestId('signin-send').click();
   await expect(v.getByTestId('dev-code')).toBeVisible();
   await v.getByTestId('signin-code').fill('000000');
@@ -48,10 +48,31 @@ test('sign-in: wrong number, wrong code and too-fast resend are refused', async 
   await expect(v.getByText(/Wait 30 seconds/)).toBeVisible();
 });
 
-test('existing client (staff-entered) signs in by WhatsApp and is recognised', async ({ page }) => {
-  await signIn(page, '0722 100 001', undefined, 'WhatsApp'); // Grace Wanjiru in the dummy data
+test('existing client: staff add their email, they sign in by email and are recognised', async ({ page, request }) => {
+  const email = newEmail();
+  const api = await ownerApi(request);
+  const c = await (await api.get(`http://localhost:54329/rest/v1/clients?select=id&name=eq.Grace%20Wanjiru`)).json();
+  await api.patch(`http://localhost:54329/rest/v1/clients?id=eq.${c[0].id}`, { data: { email } });
+  await signIn(page, email); // no "your details" step: already known with a phone
   await page.goto('/portal/account');
   await expect(view(page).getByTestId('acc-name')).toHaveValue('Grace Wanjiru');
+});
+
+test('Google sign-in (simulated in test mode) creates the client and asks for name and phone', async ({ page }) => {
+  await page.goto('/portal/sign-in');
+  const v = view(page);
+  await v.getByTestId('signin-google').click();
+  await v.getByTestId('google-test-email').fill(newEmail());
+  await v.getByTestId('google-test-name').fill('Gmail Tester');
+  await v.getByTestId('google-test-go').click();
+  await expect(v.getByTestId('signin-name')).toHaveValue('Gmail Tester');
+  await v.getByTestId('signin-phone').fill(newPhone());
+  await v.getByTestId('signin-save-name').click();
+  await expect(page.locator('ion-toast').filter({ hasText: 'Welcome, Gmail' })).toBeVisible();
+  await page.goto('/portal/account');
+  await expect(view(page).getByTestId('acc-name')).toHaveValue('Gmail Tester');
+  await view(page).getByTestId('privacy-link').click();
+  await expect(view(page).getByTestId('privacy')).toContainText('How we use your details');
 });
 
 test('full booking: choose, sign in, request, pay deposit, salon confirms, client sees it', async ({ page }) => {

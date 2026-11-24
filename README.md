@@ -86,7 +86,7 @@ In test mode the sign-in code and the M-Pesa prompt appear **on screen** (marked
 ```bash
 cd app
 npx playwright install chromium   # once
-npx playwright test               # 92 tests: staff app, M-Pesa prompt, client app, school, owner settings, staff accounts, every role, team free/busy and assigning, custom roles and finisher, early check-in – phone and desktop size
+npx playwright test               # 103 tests: staff app, M-Pesa prompt, client app (email / Google sign-in), school, owner settings, staff accounts, every role, team free/busy, custom roles and finisher, early check-in, database security, notifications – phone and desktop size
 npx playwright show-report e2e-report
 ```
 The tests start their own throw-away database (port 54329) and app (port 4300) – your test data is not touched.
@@ -103,6 +103,10 @@ Clients get the main address (it opens the client app); the site can also be ins
 (*Add to Home screen*) with the Dantesras icon.
 
 ## 4. M-Pesa prompt and sign-in codes – going live
+
+> **Free setup (no SMS):** clients sign in with an email code or Google, notifications go through
+> Firebase, backups run on GitHub. The steps that need your own accounts are in
+> [docs/free-setup.md](docs/free-setup.md). Database access is locked per role since migration 014.
 Deploy the Edge Functions once (Supabase CLI): `supabase functions deploy mpesa-stk portal-otp mpesa-simulate`
 and `supabase functions deploy mpesa-callback --no-verify-jwt`. Then add **secrets** (Dashboard → Edge Functions → Secrets):
 

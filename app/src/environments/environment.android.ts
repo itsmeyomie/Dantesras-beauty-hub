@@ -8,4 +8,7 @@ export const environment = {
   supabaseAnonKey: 'sb_publishable_kbfjk0D-jDpZ0gWDf6opaw_Iwscb68J',
   /** TEST MODE: sign-in codes and M-Pesa prompts shown on screen (no SMS, no money). */
   simulate: true,
+  /** true = client sign-in codes are shown on screen and "Google" is simulated (test mode).
+   *  false = real email codes and Google through Supabase Auth (set up the free accounts first – docs/free-setup.md). */
+  simulateSignIn: true,
 };

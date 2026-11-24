@@ -63,3 +63,15 @@ test('front desk shortcuts open the walk-in and booking forms', async ({ page, r
   await expect(m.locator('ion-title')).toHaveText('New booking');
   await expect(m.locator('ion-button').filter({ hasText: 'Add to queue' })).toBeVisible();
 });
+
+test('staff can sign out from More (phone and Android app) and the staff pages close', async ({ page, request }) => {
+  await loginAs(page, request, 'receptionist');
+  await page.goto('/more');
+  await page.evaluate(() => sessionStorage.setItem('e2e.signedOut', '1')); // keep the test login from coming back
+  await view(page).getByTestId('more-signout').click();
+  await answerAlert(page, 'Sign out');
+  await expect(page).toHaveURL(/\/staff\/sign-in/);
+  expect(await page.evaluate(() => localStorage.getItem('dbh.staff.token'))).toBeNull();
+  await page.goto('/desk');
+  await expect(page).toHaveURL(/\/staff\/sign-in/);
+});

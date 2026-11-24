@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { loginAs, toast, view } from './helpers';
+import { loginAs, toast, view, ownerApi } from './helpers';
 
 // Stylist app: my day, take a walk-in, calendar, earnings, profile.
 
@@ -20,13 +20,13 @@ test('stylist lands on My day with her own tabs', async ({ page }) => {
 
 test('stylist takes a walk-in from the queue and checks the client out', async ({ page, request }) => {
   const guest = `Queue Guest ${Date.now() % 100000}`;
-  const res = await request.post('http://localhost:54329/rest/v1/bookings', {
+  const res = await (await ownerApi(request)).post('http://localhost:54329/rest/v1/bookings', {
     headers: { Prefer: 'return=representation' },
     data: { guest_name: guest, channel: 'walkin', status: 'waiting', source: 'In person', scheduled_at: new Date().toISOString() },
   });
   const [b] = await res.json();
-  const svc = await (await request.get('http://localhost:54329/rest/v1/services?select=id&name=eq.Gel')).json();
-  await request.post('http://localhost:54329/rest/v1/booking_services', { data: { booking_id: b.id, service_id: svc[0].id, name: 'Gel', price: 500 } });
+  const svc = await (await (await ownerApi(request)).get('http://localhost:54329/rest/v1/services?select=id&name=eq.Gel')).json();
+  await (await ownerApi(request)).post('http://localhost:54329/rest/v1/booking_services', { data: { booking_id: b.id, service_id: svc[0].id, name: 'Gel', price: 500 } });
 
   await page.goto('/my-day');
   const v = view(page);
@@ -45,13 +45,13 @@ test('stylist takes a walk-in from the queue and checks the client out', async (
 test('my calendar and my earnings show my own numbers', async ({ page, request }) => {
   // a booking for Wanjiku later today (dummy data is random)
   const api = 'http://localhost:54329/rest/v1';
-  const me = (await (await request.get(`${api}/staff?select=id&name=eq.Wanjiku%20Kamau`)).json())[0];
+  const me = (await (await (await ownerApi(request)).get(`${api}/staff?select=id&name=eq.Wanjiku%20Kamau`)).json())[0];
   const guest = `Calendar Guest ${Date.now() % 100000}`;
   const at = new Date();
   at.setHours(Math.min(at.getHours() + 1, 23), 0, 0, 0);
-  const [b] = await (await request.post(`${api}/bookings`, { headers: { Prefer: 'return=representation' },
+  const [b] = await (await (await ownerApi(request)).post(`${api}/bookings`, { headers: { Prefer: 'return=representation' },
     data: { guest_name: guest, channel: 'salon', status: 'booked', scheduled_at: at.toISOString(), duration_min: 60 } })).json();
-  await request.post(`${api}/booking_staff`, { data: { booking_id: b.id, staff_id: me.id } });
+  await (await ownerApi(request)).post(`${api}/booking_staff`, { data: { booking_id: b.id, staff_id: me.id } });
 
   await page.goto('/my-calendar');
   const v = view(page);

@@ -6,11 +6,19 @@ export function newPhone(): string {
   return '0711' + String(Date.now() % 1_000_000).padStart(6, '0');
 }
 
-/** Sign in on the sign-in page that is on screen (code is shown in test mode). */
-export async function completeSignIn(page: Page, address: string, name?: string, channel: 'SMS' | 'WhatsApp' | 'Email' = 'SMS') {
+/** A fresh email for each new test client. */
+export function newEmail(): string {
+  return `client.${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}@example.com`;
+}
+
+/**
+ * Sign in on the sign-in page that is on screen with an emailed code (shown in test mode).
+ * `who` is an email, or a phone number for a NEW client (a fresh email is made and the phone saved).
+ */
+export async function completeSignIn(page: Page, who: string, name?: string) {
   const v = view(page);
-  if (channel !== 'SMS') await v.locator('.p-seg button').filter({ hasText: channel }).click();
-  await v.getByTestId('signin-address').fill(address);
+  const isEmail = who.includes('@');
+  await v.getByTestId('signin-address').fill(isEmail ? who : newEmail());
   await v.getByTestId('signin-send').click();
   const dev = v.getByTestId('dev-code');
   await expect(dev).toBeVisible();
@@ -20,14 +28,15 @@ export async function completeSignIn(page: Page, address: string, name?: string,
   if (name) {
     await expect(v.getByTestId('signin-name')).toBeVisible();
     await v.getByTestId('signin-name').fill(name);
+    if (!isEmail) await v.getByTestId('signin-phone').fill(who);
     await v.getByTestId('signin-save-name').click();
   }
   await expect(page.locator('ion-toast').filter({ hasText: 'Welcome' }).last()).toBeVisible();
 }
 
-export async function signIn(page: Page, address: string, name?: string, channel: 'SMS' | 'WhatsApp' | 'Email' = 'SMS') {
+export async function signIn(page: Page, who: string, name?: string) {
   await page.goto('/portal/sign-in');
-  await completeSignIn(page, address, name, channel);
+  await completeSignIn(page, who, name);
 }
 
 /** Simulated M-Pesa prompt inside the given scope: enter PIN and send. */
@@ -91,8 +100,14 @@ export async function bookSteps(page: Page, opts: { category?: string; service: 
   await v.getByTestId('book-next').click();
   // book calendar
   await pickDay(page, bookingOffset());
-  const time = opts.time ?? randomTime();
+  let time = opts.time ?? randomTime();
   await setTime(page, time);
+  // many tests book the same day: if every stylist is busy at a random time, try another one
+  const okAt = (t: string) => expect(v.getByTestId('time-ok').filter({ hasText: t })).toBeVisible({ timeout: 3000 }).then(() => true, () => false);
+  for (let i = 0; !opts.time && i < 6 && !(await okAt(time)); i++) {
+    time = randomTime();
+    await setTime(page, time);
+  }
   await expect(v.getByTestId('time-ok')).toContainText(time);
   await v.getByTestId('book-next').click();
   // choose stylist (free at that time)

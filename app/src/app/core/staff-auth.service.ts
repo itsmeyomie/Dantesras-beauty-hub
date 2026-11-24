@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { DataService } from './data.service';
+import { NotifyService } from './notify.service';
 
 /** Built-in roles; the owner can also create others (e.g. finisher). */
 export type StaffRole = string;
@@ -44,6 +45,7 @@ const write = (v: string | null) => { try { v ? localStorage.setItem(TOKEN_KEY, 
 @Injectable({ providedIn: 'root' })
 export class StaffAuthService {
   private data = inject(DataService);
+  private notify = inject(NotifyService);
   readonly token = signal<string | null>(read());
   readonly me = signal<StaffMe | null>(null);
   readonly signedIn = computed(() => !!this.token());
@@ -99,6 +101,7 @@ export class StaffAuthService {
     if (r.status === 'approved' && r.token) {
       this.token.set(r.token);
       write(r.token);
+      void this.notify.register('staff', r.token);
     }
     return r.status;
   }
@@ -120,6 +123,7 @@ export class StaffAuthService {
     if (this.me()?.account_status === 'approved') return true;
     try {
       this.me.set(await this.authed<StaffMe>('staff_me'));
+      void this.notify.register('staff', this.token()!);
       return true;
     } catch {
       this.clear();
@@ -130,6 +134,7 @@ export class StaffAuthService {
     this.me.set(await this.authed<StaffMe>('staff_update_me', { p }));
   }
   async logout() {
+    await this.notify.unregister();
     const t = this.token();
     this.clear();
     if (t) await this.call('staff_logout', { p_token: t }).catch(() => undefined);

@@ -1,11 +1,12 @@
 import { Component, computed, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { Ui } from '../core/ui';
 import { IonContent, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   barChartOutline, calendarOutline, cashOutline, checkmarkDoneOutline, cutOutline, peopleOutline, personCircleOutline,
   phonePortraitOutline, pricetagsOutline, receiptOutline, schoolOutline, settingsOutline, speedometerOutline, sunnyOutline,
-  walletOutline, mailOutline, storefrontOutline, keyOutline,
+  walletOutline, mailOutline, storefrontOutline, keyOutline, logOutOutline,
 } from 'ionicons/icons';
 import { StaffAuthService } from '../core/staff-auth.service';
 import { StaffHeaderComponent } from './staff-header.component';
@@ -17,7 +18,7 @@ export interface Module { title: string; sub: string; url: string; icon: string;
 addIcons({
   speedometerOutline, storefrontOutline, sunnyOutline, calendarOutline, mailOutline, cashOutline, receiptOutline, peopleOutline,
   walletOutline, cutOutline, pricetagsOutline, personCircleOutline, schoolOutline, checkmarkDoneOutline, barChartOutline,
-  settingsOutline, phonePortraitOutline, keyOutline,
+  settingsOutline, phonePortraitOutline, keyOutline, logOutOutline,
 });
 
 export const MODULES: Module[] = [
@@ -61,12 +62,23 @@ export const MODULES: Module[] = [
             }
           </div>
         }
+        <button class="p-btn block ghost" style="margin-top:22px;color:#9b1c1c" (click)="signOut()" data-testid="more-signout">
+          <ion-icon name="log-out-outline"></ion-icon>Sign out{{ name() ? ' (' + name() + ')' : '' }}</button>
       </div>
     </ion-content>
   `,
 })
 export class MorePage {
   private auth = inject(StaffAuthService);
+  private ui = inject(Ui);
+  private router = inject(Router);
+  readonly name = computed(() => this.auth.firstName());
+  async signOut() {
+    if (!(await this.ui.confirm('Sign out', 'Sign out of the staff app on this phone?', 'Sign out'))) return;
+    await this.auth.logout();
+    this.ui.toast('Signed out', 'medium');
+    void this.router.navigateByUrl('/staff/sign-in', { replaceUrl: true });
+  }
   readonly groups = computed(() => {
     this.auth.me();
     const visible = MODULES.filter((m) => this.auth.can(m.area));

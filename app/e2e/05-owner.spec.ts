@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { fill, toast, view , loginAs } from './helpers';
+import { fill, toast, view , loginAs, ownerApi } from './helpers';
 
 test.beforeEach(async ({ page, request }) => {
   await loginAs(page, request, 'owner');
@@ -10,7 +10,7 @@ import { bookSteps, newPhone, signIn } from './portal-helpers';
 
 // whatever happens, leave online booking switched on for the tests that follow
 test.afterEach(async ({ request }) => {
-  await request.post('http://localhost:54329/rest/v1/settings', {
+  await (await ownerApi(request)).post('http://localhost:54329/rest/v1/settings', {
     headers: { Prefer: 'resolution=merge-duplicates' },
     data: { key: 'online_booking', value: true },
   });

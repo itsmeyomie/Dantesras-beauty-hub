@@ -7,4 +7,7 @@ export const environment = {
   /** true = TEST MODE: sign-in codes and M-Pesa prompts are shown on screen (no SMS, no money).
    *  Set to false once SMS/WhatsApp/email and Daraja keys are added in Supabase. */
   simulate: true,
+  /** true = client sign-in codes are shown on screen and "Google" is simulated (test mode).
+   *  false = real email codes and Google through Supabase Auth (set up the free accounts first – docs/free-setup.md). */
+  simulateSignIn: true,
 };

@@ -26,14 +26,17 @@ export const routes: Routes = [
   { path: '', redirectTo: 'portal', pathMatch: 'full' },
   { path: 'portal', loadComponent: () => import('./portal/home.page').then((m) => m.PortalHomePage) },
   { path: 'portal/sign-in', loadComponent: () => import('./portal/sign-in.page').then((m) => m.PortalSignInPage) },
+  { path: 'portal/privacy', loadComponent: () => import('./portal/privacy.page').then((m) => m.PortalPrivacyPage) },
   { path: 'portal/book', loadComponent: () => import('./portal/book.page').then((m) => m.PortalBookPage) },
   { path: 'portal/bookings', canActivate: [signedIn], loadComponent: () => import('./portal/bookings.page').then((m) => m.PortalBookingsPage) },
+  { path: 'portal/notifications', canActivate: [signedIn], loadComponent: () => import('./portal/notifications.page').then((m) => m.PortalNotificationsPage) },
   { path: 'portal/account', loadComponent: () => import('./portal/account.page').then((m) => m.PortalAccountPage) },
   { path: 'portal/school', loadComponent: () => import('./portal/school.page').then((m) => m.PortalSchoolPage) },
 
   // ----- staff app (owner, manager, receptionist, stylist) -----
   { path: 'staff', redirectTo: 'staff/sign-in', pathMatch: 'full' },
   { path: 'staff/sign-in', loadComponent: () => import('./staff/staff-sign-in.page').then((m) => m.StaffSignInPage) },
+  s('notifications', 'me', () => import('./staff/notifications.page').then((m) => m.StaffNotificationsPage)),
   s('more', 'more', () => import('./staff/more.page').then((m) => m.MorePage)),
   s('me', 'me', () => import('./staff/me.page').then((m) => m.MePage)),
   s('my-day', 'my-day', () => import('./staff/my-day.page').then((m) => m.MyDayPage)),

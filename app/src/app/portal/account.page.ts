@@ -7,6 +7,7 @@ import { briefcaseOutline, logOutOutline, personCircleOutline } from 'ionicons/i
 import { KshPipe, Ui } from '../core/ui';
 import { PortalService } from './portal.service';
 import { PortalTabsComponent } from './portal-tabs.component';
+import { InstallService } from '../core/install.service';
 
 @Component({
   selector: 'app-portal-account',
@@ -41,11 +42,23 @@ import { PortalTabsComponent } from './portal-tabs.component';
             <div style="margin-top:16px"><a class="p-btn" routerLink="/portal/sign-in">Sign in</a></div>
           </div>
         }
+        @if (!install.isApp()) {
+          <div class="p-card" style="margin-top:22px" data-testid="get-app">
+            <b>Get the Dantesras app</b>
+            <p class="p-muted p-small" style="margin:4px 0 10px">Book faster and get notified when the salon confirms.</p>
+            <div class="p-row" style="gap:8px;flex-wrap:wrap">
+              @if (install.canInstall()) { <button class="p-btn small" (click)="install.install()" data-testid="install-app">Install on this phone</button> }
+              <a class="p-btn small ghost" href="download/Dantesras.apk" download>Android app (APK)</a>
+            </div>
+            @if (!install.canInstall()) { <p class="p-muted p-small" style="margin:8px 0 0">iPhone: tap Share → "Add to Home Screen".</p> }
+          </div>
+        }
         <a class="p-card p-row" routerLink="/staff/sign-in" style="margin-top:22px;text-decoration:none;color:inherit" data-testid="staff-entry">
           <span class="p-round ink"><ion-icon name="briefcase-outline"></ion-icon></span>
           <span class="p-spacer"><b>Work at Dantesras?</b><br /><span class="p-muted p-small">Owner and staff sign in here</span></span>
           <span class="p-btn small">Staff sign-in</span>
         </a>
+        <p class="p-center p-small" style="margin-top:14px"><a class="p-link" routerLink="/portal/privacy" data-testid="privacy-link">How we use your details (privacy)</a></p>
       </div>
     </ion-content>
     <app-portal-tabs />
@@ -53,6 +66,7 @@ import { PortalTabsComponent } from './portal-tabs.component';
 })
 export class PortalAccountPage implements ViewWillEnter {
   readonly p = inject(PortalService);
+  readonly install = inject(InstallService);
   private ui = inject(Ui);
   private router = inject(Router);
   readonly busy = signal(false);

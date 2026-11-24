@@ -51,7 +51,7 @@ export class Ui {
     await t.present();
   }
   error(e: unknown) {
-    return this.toast(e instanceof Error ? e.message : String(e), 'danger');
+    return this.toast((e instanceof Error ? e.message : String(e)).replace(/^STAFF_SESSION:\s*/, ''), 'danger');
   }
   async confirm(header: string, message: string, ok = 'Yes'): Promise<boolean> {
     const a = await this.alertCtrl.create({ header, message, buttons: [{ text: 'Cancel', role: 'cancel' }, { text: ok, role: 'ok' }] });

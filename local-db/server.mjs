@@ -64,6 +64,17 @@ try {
     if not exists (select 1 from pg_roles where rolname='anon') then create role anon; end if;
     if not exists (select 1 from pg_roles where rolname='authenticated') then create role authenticated; end if;
   end $$;`);
+  // like Supabase: the API roles may use everything in public unless a migration revokes it,
+  // and row level security decides which rows they see
+  await db.exec(`grant usage on schema public to anon, authenticated;
+    alter default privileges in schema public grant all on tables to anon, authenticated;
+    alter default privileges in schema public grant all on sequences to anon, authenticated;
+    alter default privileges in schema public grant execute on functions to anon, authenticated;`);
+  if (!fresh && (await db.query(`select to_regclass('public._api_roles_v1') is null as missing`)).rows[0].missing) {
+    console.error('\nThis test database was made before the role lock-down. Run:  npm run reset\n');
+    process.exit(1);
+  }
+  await db.exec('create table if not exists _api_roles_v1 (done boolean)');
   await db.exec('create extension if not exists pgcrypto');
   const tracked = (await db.query(`select to_regclass('public._migrations') is not null as t`)).rows[0].t;
   await db.exec(`create table if not exists _migrations (name text primary key, applied_at timestamptz not null default now())`);
@@ -286,11 +297,29 @@ const jsonParam = (v) => JSON.stringify(v);
 // Handlers
 // ---------------------------------------------------------------------
 async function handleRest(req, url, body) {
+  // like PostgREST: every request runs as the "anon" role, in one transaction, with the request
+  // headers visible to the database (current_setting('request.headers')) – so row level security applies
+  let out;
+  await db.transaction(async (tx) => {
+    const headers = Object.fromEntries(Object.entries(req.headers).map(([k, v]) => [k.toLowerCase(), Array.isArray(v) ? v.join(',') : v]));
+    await tx.query(`select set_config('request.headers', $1, true), set_config('role', 'anon', true)`, [JSON.stringify(headers)]);
+    out = await handleRestAs(tx, req, url, body);
+  });
+  return out;
+}
+async function handleRestAs(db, req, url, body) {
   const parts = url.pathname.replace(/^\/rest\/v1\/?/, '').split('/').filter(Boolean);
   const sp = url.searchParams;
   const prefer = req.headers['prefer'] ?? '';
   const wantsObject = (req.headers['accept'] ?? '').includes('vnd.pgrst.object');
   const returnRows = prefer.includes('return=representation');
+  // like PostgREST: return only what was asked for (and nothing without return=representation),
+  // so hidden columns (e.g. staff.password_hash) are never touched
+  const plainSelect = (sp.get('select') ?? '*').split(',').map((c) => c.trim()).filter(Boolean);
+  const returningAs = (alias) => !returnRows ? ' returning 1'
+    : plainSelect.includes('*') || plainSelect.some((c) => /[()!:]/.test(c)) ? ` returning ${alias ? alias + '.' : ''}*`
+    : ' returning ' + plainSelect.map((c) => (alias ? alias + '.' : '') + q(c)).join(', ');
+  const returning = returningAs('');
 
   // ----- RPC -----
   if (parts[0] === 'rpc') {
@@ -330,7 +359,7 @@ async function handleRest(req, url, body) {
       sql += ` on conflict (${pk.map(q).join(', ')}) ` +
         (prefer.includes('ignore') || !upd.length ? 'do nothing' : `do update set ${upd.map((c) => `${q(c)} = excluded.${q(c)}`).join(', ')}`);
     }
-    sql += ' returning *';
+    sql += returning;
     const res = await db.query(sql, [jsonParam(rows)]);
     await maybeReloadMeta(table);
     return returnRows ? single(res.rows, wantsObject, 201) : { status: 201, json: null };
@@ -344,7 +373,7 @@ async function handleRest(req, url, body) {
     if (!where) throw new ApiError(400, 'UPDATE without a filter is not allowed');
     params.push(jsonParam(body));
     const sql = `update ${q(table)} t0 set ${cols.map((c) => `${q(c)} = r.${q(c)}`).join(', ')} ` +
-      `from json_populate_record(null::${q(table)}, $${params.length}::json) r${where.replace(' where ', ' where ')} returning t0.*`;
+      `from json_populate_record(null::${q(table)}, $${params.length}::json) r${where.replace(' where ', ' where ')}${returningAs('t0')}`;
     const res = await db.query(sql, params);
     return returnRows ? single(res.rows, wantsObject) : { status: 204, json: null };
   }
@@ -353,7 +382,7 @@ async function handleRest(req, url, body) {
     const params = [];
     const where = whereClause('t0', sp, params);
     if (!where) throw new ApiError(400, 'DELETE without a filter is not allowed');
-    const res = await db.query(`delete from ${q(table)} t0${where} returning t0.*`, params);
+    const res = await db.query(`delete from ${q(table)} t0${where}${returningAs('t0')}`, params);
     return returnRows ? single(res.rows, wantsObject) : { status: 204, json: null };
   }
   throw new ApiError(405, `Method ${req.method} not supported`);

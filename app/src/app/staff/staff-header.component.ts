@@ -2,7 +2,8 @@ import { Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { appsOutline, chevronBackOutline } from 'ionicons/icons';
+import { appsOutline, chevronBackOutline, notificationsOutline } from 'ionicons/icons';
+import { NotifyService } from '../core/notify.service';
 import { StaffAuthService } from '../core/staff-auth.service';
 
 /** Top bar of the staff screens: back (or my photo) on the left, role + menu on the right. */
@@ -20,6 +21,8 @@ import { StaffAuthService } from '../core/staff-auth.service';
       }
       <div class="p-icons">
         <span class="p-role-pill" data-testid="role-pill">{{ auth.roleLabel() }}</span>
+        <a class="p-glass-btn" routerLink="/notifications" aria-label="Notifications" data-testid="staff-bell"><ion-icon name="notifications-outline"></ion-icon>
+          @if (notify.unread()) { <span class="dot-badge" data-testid="staff-bell-count">{{ notify.unread() }}</span> }</a>
         <a class="p-glass-btn" routerLink="/more" aria-label="All sections"><ion-icon name="apps-outline"></ion-icon></a>
       </div>
     </div>
@@ -27,8 +30,10 @@ import { StaffAuthService } from '../core/staff-auth.service';
 })
 export class StaffHeaderComponent {
   readonly auth = inject(StaffAuthService);
+  readonly notify = inject(NotifyService);
   readonly back = input<string>();
   constructor() {
-    addIcons({ chevronBackOutline, appsOutline });
+    addIcons({ chevronBackOutline, appsOutline, notificationsOutline });
+    void this.notify.refresh('staff', this.auth.token());
   }
 }
