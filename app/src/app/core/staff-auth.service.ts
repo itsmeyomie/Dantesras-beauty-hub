@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { DataService } from './data.service';
 import { NotifyService } from './notify.service';
+import { environment } from '../../environments/environment';
 
 /** Built-in roles; the owner can also create others (e.g. finisher). */
 export type StaffRole = string;
@@ -107,6 +108,22 @@ export class StaffAuthService {
   }
   signup(p: { name: string; email: string; phone: string; password: string; role: string; specialty: string; photo: string | null }) {
     return this.call<StaffMe>('staff_signup', { p });
+  }
+  // ---------- forgot password (code by email) ----------
+  /** Email a 6-digit code. Test mode: the code comes back to show on screen. */
+  async resetCode(email: string): Promise<{ to: string; dev_code?: string }> {
+    const address = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(address)) throw new Error('Enter a valid email address');
+    if (environment.simulateSignIn) return this.call<{ to: string; dev_code?: string }>('staff_reset_test_code', { p_email: address });
+    await this.data.authEmailCode(address);
+    return { to: address };
+  }
+  /** Set a new password with the emailed code. Signs out this person everywhere. */
+  resetPassword(email: string, code: string, password: string) {
+    const address = email.trim().toLowerCase();
+    return environment.simulateSignIn
+      ? this.call<{ ok: boolean; name: string }>('staff_reset_with_test_code', { p_email: address, p_code: code, p_password: password })
+      : this.data.authStaffReset(address, code, password);
   }
   setupNeeded() {
     return this.call<boolean>('staff_setup_needed', {});

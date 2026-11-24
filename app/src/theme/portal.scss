@@ -429,3 +429,8 @@ textarea.p-input { min-height: 84px; resize: vertical; }
 .p-check small { display: block; color: var(--p-muted); font-size: .78rem; margin-top: 2px; }
 .p-check:has(input:checked) { border-color: var(--p-maroon); background: #fffaf7; }
 .p-team-m .f { display: block; font-size: .6rem; color: var(--p-muted); margin-top: -1px; }
+
+// password field with Show / Hide
+.p-pass { position: relative; display: block; }
+.p-pass .p-input { padding-right: 64px; }
+.p-pass .p-link { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: .85rem; }

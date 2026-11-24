@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
 import { DataService } from '../core/data.service';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -6,7 +6,7 @@ import { IonContent, IonSpinner } from '@ionic/angular';
 import { StaffAuthService, StaffMe, resizePhoto } from '../core/staff-auth.service';
 import { Ui } from '../core/ui';
 
-type Mode = 'signin' | 'create' | 'owner' | 'pending';
+type Mode = 'signin' | 'create' | 'owner' | 'pending' | 'forgot' | 'reset';
 
 /** Staff: sign in, create an account (owner approves), first owner setup, waiting screen. */
 @Component({
@@ -29,6 +29,42 @@ type Mode = 'signin' | 'create' | 'owner' | 'pending';
           <div class="p-card" style="margin-top:26px"><div class="p-kicker">What next</div>
             <p class="p-small" style="margin:6px 0 0">When the owner approves you, sign in again with your email and password.</p></div>
           <button class="p-btn block ghost" style="margin-top:16px" (click)="mode.set('signin')">Back to sign in</button>
+        } @else if (mode() === 'forgot') {
+          <div class="p-kicker">Dantesras · staff</div>
+          <h1 class="p-display" style="margin-top:6px">Forgot <strong class="blk">password?</strong></h1>
+          <p class="p-muted" style="margin:10px 2px 16px">Enter the email you sign in with. We'll send you a 6-digit code to set a new password.</p>
+          <label class="p-field"><span>Email</span>
+            <input class="p-input" type="email" inputmode="email" autocomplete="email" [(ngModel)]="f.email" (keyup.enter)="sendReset()" data-testid="fp-email" /></label>
+          @if (error()) { <div class="p-error" data-testid="su-error">{{ error() }}</div> }
+          <button class="p-btn block" (click)="sendReset()" [disabled]="busy()" data-testid="fp-send">
+            @if (busy()) { <ion-spinner name="dots"></ion-spinner> } @else { Send code }</button>
+          <button class="p-link" style="display:block;margin:14px auto" (click)="switch('signin')">Back to sign in</button>
+        } @else if (mode() === 'reset') {
+          <div class="p-kicker">Dantesras · staff</div>
+          <h1 class="p-display" style="margin-top:6px">New <strong class="blk">password</strong></h1>
+          <p class="p-muted" style="margin:10px 2px 14px">If <b>{{ sentTo() }}</b> has a staff account, a 6-digit code is on its way. Check your inbox and spam.
+            <button class="p-link" (click)="switch('forgot')">Change email</button></p>
+          @if (devCode()) {
+            <div class="p-note sim" data-testid="fp-dev-code">Test mode – no email was sent. Your code is <strong>{{ devCode() }}</strong></div>
+          }
+          <label class="p-field"><span>6-digit code</span>
+            <input class="p-input p-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" [(ngModel)]="code" data-testid="fp-code" /></label>
+          <label class="p-field"><span>New password</span>
+            <span class="p-pass">
+              <input class="p-input" [type]="showPw() ? 'text' : 'password'" autocomplete="new-password" [(ngModel)]="newPw" data-testid="fp-new" />
+              <button type="button" class="p-link" (click)="showPw.set(!showPw())">{{ showPw() ? 'Hide' : 'Show' }}</button>
+            </span></label>
+          <p class="p-small" [class.p-muted]="newPw.length < 8" [style.color]="newPw.length >= 8 ? '#1e6b34' : null" style="margin:-6px 2px 10px">
+            {{ newPw.length >= 8 ? '✓ Good length' : 'At least 8 characters' }}</p>
+          <label class="p-field"><span>Repeat new password</span>
+            <input class="p-input" [type]="showPw() ? 'text' : 'password'" autocomplete="new-password" [(ngModel)]="newPw2" (keyup.enter)="doReset()" data-testid="fp-new2" /></label>
+          @if (error()) { <div class="p-error" data-testid="su-error">{{ error() }}</div> }
+          <button class="p-btn block" (click)="doReset()" [disabled]="busy()" data-testid="fp-save">
+            @if (busy()) { <ion-spinner name="dots"></ion-spinner> } @else { Save new password }</button>
+          <p class="p-center p-small" style="margin-top:14px">
+            @if (wait() > 0) { <span class="p-muted">Send a new code in {{ wait() }}s</span> }
+            @else { <button class="p-link" (click)="sendReset()">Send a new code</button> }</p>
+          <button class="p-link" style="display:block;margin:6px auto" (click)="switch('signin')">Back to sign in</button>
         } @else {
           <div class="p-kicker">Dantesras · staff</div>
           <h1 class="p-display" style="margin-top:6px">
@@ -84,6 +120,9 @@ type Mode = 'signin' | 'create' | 'owner' | 'pending';
             @if (busy()) { <ion-spinner name="dots"></ion-spinner> }
             @else { {{ mode() === 'create' ? 'Request access' : mode() === 'owner' ? 'Create owner account' : 'Sign in' }} }
           </button>
+          @if (mode() === 'signin') {
+            <button class="p-link" style="display:block;margin:14px auto 0" (click)="switch('forgot')" data-testid="forgot-link">Forgot password?</button>
+          }
           @if (mode() === 'create') { <p class="p-muted p-small p-center">The owner approves every new account.</p> }
           @if (mode() === 'owner') { <button class="p-link" style="display:block;margin:10px auto" (click)="switch('signin')">Back</button> }
           <a class="p-staff-link" routerLink="/portal">Client app</a>
@@ -92,7 +131,7 @@ type Mode = 'signin' | 'create' | 'owner' | 'pending';
     </ion-content>
   `,
 })
-export class StaffSignInPage implements OnInit {
+export class StaffSignInPage implements OnInit, OnDestroy {
   private auth = inject(StaffAuthService);
   private router = inject(Router);
   private ui = inject(Ui);
@@ -111,6 +150,58 @@ export class StaffSignInPage implements OnInit {
     return list.length ? list : [{ value: 'stylist', label: 'Stylist' }, { value: 'receptionist', label: 'Receptionist' }, { value: 'manager', label: 'Manager' }];
   });
   f = { name: '', email: '', phone: '', password: '', role: 'stylist', specialty: '' };
+  // forgot password
+  readonly sentTo = signal('');
+  readonly devCode = signal<string | null>(null);
+  readonly wait = signal(0);
+  readonly showPw = signal(false);
+  code = '';
+  newPw = '';
+  newPw2 = '';
+  private timer?: ReturnType<typeof setInterval>;
+
+  ngOnDestroy() {
+    clearInterval(this.timer);
+  }
+  async sendReset() {
+    this.error.set('');
+    if (!this.f.email.trim()) return this.error.set('Enter your email');
+    this.busy.set(true);
+    try {
+      const r = await this.auth.resetCode(this.f.email);
+      this.sentTo.set(r.to);
+      this.devCode.set(r.dev_code ?? null);
+      this.code = '';
+      this.mode.set('reset');
+      this.wait.set(60);
+      clearInterval(this.timer);
+      this.timer = setInterval(() => this.wait.update((w) => (w > 0 ? w - 1 : 0)), 1000);
+    } catch (e) {
+      this.error.set(e instanceof Error ? e.message : String(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+  async doReset() {
+    this.error.set('');
+    if (!/^\d{6}$/.test(this.code.trim())) return this.error.set('Enter the 6-digit code from the email');
+    if (this.newPw.length < 8) return this.error.set('Use at least 8 characters');
+    if (this.newPw !== this.newPw2) return this.error.set('The two passwords are not the same');
+    this.busy.set(true);
+    try {
+      await this.auth.resetPassword(this.sentTo(), this.code.trim(), this.newPw);
+      this.f.password = '';
+      this.f.email = this.sentTo();
+      this.newPw = this.newPw2 = this.code = '';
+      clearInterval(this.timer);
+      this.mode.set('signin');
+      this.ui.toast('Password changed – sign in with your new password');
+    } catch (e) {
+      this.error.set(e instanceof Error ? e.message : String(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
 
   async ngOnInit() {
     this.setupNeeded.set(await this.auth.setupNeeded().catch(() => false));

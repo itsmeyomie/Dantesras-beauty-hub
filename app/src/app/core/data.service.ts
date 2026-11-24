@@ -76,6 +76,16 @@ export class DataService {
     if (error) throw this.authError(error);
     return this.portalFromAuth();
   }
+  /** Staff "Forgot password?": check the emailed code, then set the new password. */
+  async authStaffReset(email: string, code: string, password: string) {
+    const { error } = await this.auth.auth.verifyOtp({ email, token: code, type: 'email' });
+    if (error) throw this.authError(error);
+    try {
+      return await this.run<{ ok: boolean; name: string }>(this.auth.rpc('staff_reset_password', { p_password: password }));
+    } finally {
+      await this.auth.auth.signOut({ scope: 'local' }).catch(() => undefined);
+    }
+  }
   /** Address of Google's sign-in page; Google sends the client back to redirectTo with a code. */
   async authGoogleUrl(redirectTo: string): Promise<string> {
     const { data, error } = await this.auth.auth.signInWithOAuth({ provider: 'google', options: { redirectTo, skipBrowserRedirect: true } });
