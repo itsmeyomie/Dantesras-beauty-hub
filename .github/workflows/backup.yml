@@ -3,8 +3,10 @@
 # public repository can be downloaded by anyone signed in to GitHub.
 #
 # Needs two repository secrets (GitHub → Settings → Secrets and variables → Actions):
-#   SUPABASE_DB_URL     Supabase → Connect → "Session pooler" connection string (with the password filled in)
-#   BACKUP_PASSPHRASE   a long passphrase you keep safe – without it the backups cannot be opened
+#   SUPABASE_DB_PASSWORD  the database password (Supabase → Project Settings → Database)
+#   BACKUP_PASSPHRASE     a long passphrase you keep safe – without it the backups cannot be opened
+# The password is passed on its own (never inside an address), so any characters work and
+# it never appears in the public job log.
 #
 # Restore: see docs/backup.md
 name: Nightly database backup
@@ -21,23 +23,31 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Supabase session pooler (Supabase → Connect → Session pooler) – not secret
+      PGHOST: aws-1-eu-west-1.pooler.supabase.com
+      PGPORT: '5432'
+      PGUSER: postgres.frjflqepqhjkxfzknnoz
+      PGDATABASE: postgres
+      PGSSLMODE: require
     steps:
       - name: Check the secrets are set
         env:
-          DB: ${{ secrets.SUPABASE_DB_URL }}
+          DBPASS: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PASS: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
-          if [ -z "$DB" ] || [ -z "$PASS" ]; then
-            echo "::error::Add the SUPABASE_DB_URL and BACKUP_PASSPHRASE secrets first (see docs/backup.md)."
+          if [ -z "$DBPASS" ] || [ -z "$PASS" ]; then
+            echo "::error::Add the SUPABASE_DB_PASSWORD and BACKUP_PASSPHRASE secrets first (see docs/backup.md)."
             exit 1
           fi
 
       - name: Dump the database (public schema)
         env:
-          DB: ${{ secrets.SUPABASE_DB_URL }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          docker run --rm -e DB -v "$PWD:/out" postgres:17 \
-            sh -c 'pg_dump "$DB" --schema=public --no-owner --no-privileges --format=custom --file=/out/dantesras.dump'
+          docker run --rm -e PGHOST -e PGPORT -e PGUSER -e PGDATABASE -e PGSSLMODE -e PGPASSWORD \
+            -v "$PWD:/out" postgres:17 \
+            pg_dump --schema=public --no-owner --no-privileges --format=custom --file=/out/dantesras.dump
           ls -l dantesras.dump
 
       - name: Encrypt

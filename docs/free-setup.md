@@ -33,7 +33,7 @@ If they are lost, phones cannot update the app – everyone would have to uninst
 
 ## 1. Nightly backup
 
-Follow `docs/backup.md` (two GitHub secrets, then "Run workflow").
+Follow `docs/backup.md` (two GitHub secrets: `SUPABASE_DB_PASSWORD` and `BACKUP_PASSPHRASE`, then "Run workflow").
 
 ## 2. Email codes – free with a Gmail account
 
