@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Test copy of the app (debug build): different name so it is never mixed up with the real one -->
+<resources>
+    <string name="app_name">Dantesras TEST</string>
+    <string name="title_activity_main">Dantesras TEST</string>
+</resources>

@@ -7,8 +7,8 @@ android {
         applicationId "ke.dantesras.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "1.4"
+        versionCode 6
+        versionName "1.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -31,6 +31,10 @@ android {
         }
     }
     buildTypes {
+        // test copy for the phone: installs next to the real app, talks to the computer's test database
+        debug {
+            applicationIdSuffix ".test"
+        }
         release {
             if (signingFile.exists()) signingConfig signingConfigs.release
             minifyEnabled false

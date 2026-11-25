@@ -35,3 +35,6 @@ app/android/keystore/
 app/android/keystore.properties
 app/android/keystore*
 *.rar
+
+# phone test screenshots (private)
+app/device-tests/shots/

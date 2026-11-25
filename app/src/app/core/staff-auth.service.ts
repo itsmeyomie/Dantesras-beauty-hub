@@ -151,7 +151,7 @@ export class StaffAuthService {
     this.me.set(await this.authed<StaffMe>('staff_update_me', { p }));
   }
   async logout() {
-    await this.notify.unregister();
+    await this.notify.unregister('staff');
     const t = this.token();
     this.clear();
     if (t) await this.call('staff_logout', { p_token: t }).catch(() => undefined);

@@ -151,12 +151,21 @@ export class AppComponent implements OnInit {
       if (e instanceof NavigationEnd) this.url.set(e.urlAfterRedirects.split('?')[0]);
     });
     void this.listenForAppLinks();
+    void this.openStaffHome();
     if (!this.data.configured) return;
     try {
       await this.data.loadReference();
     } catch (e) {
       this.ui.error(e);
     }
+  }
+  /** App opened on the client home while a staff member is signed in on this phone: go to their own home. */
+  private async openStaffHome() {
+    const start = location.pathname.replace(document.baseURI.replace(location.origin, '').replace(/\/$/, ''), '') || '/';
+    if (!['/', '/portal', '/portal/'].includes(start) || !this.auth.token()) return;
+    const { Capacitor } = await import('@capacitor/core');
+    if (!Capacitor.isNativePlatform()) return; // website: the owner may preview the client app
+    if (await this.auth.ensureMe().catch(() => false)) void this.router.navigateByUrl(this.auth.home(), { replaceUrl: true });
   }
   /** Android app: Google sign-in comes back as ke.dantesras.app://auth-callback?code=… */
   private async listenForAppLinks() {

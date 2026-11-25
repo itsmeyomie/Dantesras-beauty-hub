@@ -168,7 +168,8 @@ begin
       select v_booking, nullif(i->>'service_id','')::uuid, nullif(i->>'variant_id','')::uuid, i->>'name', (i->>'unit_price')::numeric
       from jsonb_array_elements(v_items) i where i->>'kind' = 'service';
     -- full prepayment covers the booked services (+ transport); never more than the final bill
-    v_dep := least(case when random() < 0.3 then (select sum((i->>'unit_price')::numeric) from jsonb_array_elements(v_items) i where i->>'kind' = 'service') + v_trans else 500 end, v_total);
+    v_dep := least(case when random() < 0.3 then (select sum((i->>'unit_price')::numeric) from jsonb_array_elements(v_items) i where i->>'kind' = 'service') + v_trans else 500 end, v_total,
+                   (select coalesce(sum((i->>'unit_price')::numeric), 0) from jsonb_array_elements(v_items) i where i->>'kind' = 'service') + v_trans);
     perform add_deposit(v_booking, 'mpesa_till', v_dep, upper(substr(md5(random()::text), 1, 3)), v_ts - interval '2 days');
     update payments set paid_at = v_ts - interval '2 days' where booking_id = v_booking and kind = 'deposit';
   end if;
@@ -227,12 +228,12 @@ begin
     select id into s from staff where active order by random() limit 1;
     insert into bookings(client_id, channel, source, status, scheduled_at, duration_min, address, transport_fee)
     values (c, case when i = 3 then 'home' else 'salon' end, 'WhatsApp', 'pending',
-            ((today + (i / 3)) + make_time(9 + (i % 3) * 3, 0, 0)) at time zone 'Africa/Nairobi', 120,
+            ((today + (array[0, 1, 4, 5])[i / 3 + 1]) + make_time(9 + (i % 3) * 3, 0, 0)) at time zone 'Africa/Nairobi', 120,
             case when i = 3 then 'Membley estate, house 12' end, case when i = 3 then 300 else 0 end)
     returning id into b;
     insert into booking_services(booking_id, service_id, name, price) values (b, svc.id, svc.name, svc.price);
     insert into booking_staff(booking_id, staff_id) values (b, s);
-    if i % 3 <> 2 then perform add_deposit(b, 'mpesa_till', 500, upper(substr(md5(random()::text),1,3)), now()); end if;
+    if i % 3 <> 2 then perform add_deposit(b, 'mpesa_till', least(500, svc.price), upper(substr(md5(random()::text),1,3)), now()); end if;
   end loop;
 
   -- past no-shows (deposit kept) and a cancellation

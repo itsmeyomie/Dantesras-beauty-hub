@@ -62,12 +62,12 @@ export class NotifyService {
       /* Firebase not set up in this build – in-app notifications still work */
     }
   }
-  /** Signing out: this phone stops receiving that person's notifications. */
-  async unregister() {
-    this.who = null;
+  /** Signing out (client or staff): this phone stops receiving that side's notifications only. */
+  async unregister(kind: 'client' | 'staff') {
+    if (this.who?.kind === kind) this.who = null;
     this.unread.set(0);
     const device = read(DEVICE_KEY);
-    if (device) await this.data.rpc('unregister_device', { p_device: device }).catch(() => undefined);
+    if (device) await this.data.rpc('unregister_device', { p_device: device, p_kind: kind }).catch(() => undefined);
   }
 
   private async save(device: string) {

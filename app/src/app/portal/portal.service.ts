@@ -171,7 +171,7 @@ export class PortalService {
     this.me.set(await this.authed<Me>('portal_update_profile', { p }));
   }
   async signOut() {
-    await this.notify.unregister();
+    await this.notify.unregister('client');
     const t = this.token();
     this.clearSession();
     if (t) await this.data.rpc('portal_sign_out', { p_token: t }).catch(() => undefined);
