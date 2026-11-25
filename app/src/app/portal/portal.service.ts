@@ -8,6 +8,8 @@ export type OtpChannel = 'sms' | 'whatsapp' | 'email';
 /** Where Google sends the client back in the Android app (also listed in AndroidManifest.xml and Supabase → Auth → URL configuration). */
 export const APP_AUTH_CALLBACK = 'ke.dantesras.app://auth-callback';
 const RETURN_KEY = 'dbh.signin.return';
+/** Which sign-in page started Google ('client' | 'staff') – the Android app link returns there. */
+export const GOOGLE_FOR_KEY = 'dbh.google.for';
 
 export interface PVariant { id: string; name: string; price: number; }
 export interface PService { id: string; name: string; price: number; price_type: 'fixed' | 'range' | 'from'; max_price: number | null; variants: PVariant[]; }
@@ -138,6 +140,7 @@ export class PortalService {
   /** Go to Google. Web: this page is left and Google comes back to /portal/sign-in?code=…; Android: opens Google in the browser. */
   async googleStart(returnUrl: string | undefined) {
     writeStore(RETURN_KEY, returnUrl || '/portal', true);
+    writeStore(GOOGLE_FOR_KEY, 'client');
     const { Capacitor } = await import('@capacitor/core');
     if (Capacitor.isNativePlatform()) {
       const url = await this.data.authGoogleUrl(APP_AUTH_CALLBACK);

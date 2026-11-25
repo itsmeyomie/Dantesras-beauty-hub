@@ -434,3 +434,10 @@ textarea.p-input { min-height: 84px; resize: vertical; }
 .p-pass { position: relative; display: block; }
 .p-pass .p-input { padding-right: 64px; }
 .p-pass .p-link { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: .85rem; }
+
+
+// "Continue with Google" button + divider (client and staff sign-in)
+.p-google { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; padding: 14px;
+  border-radius: 16px; border: 1.5px solid var(--p-line); background: #fff; font: 600 .95rem 'Inter', sans-serif; color: var(--p-ink); cursor: pointer; }
+.p-or { display: flex; align-items: center; gap: 10px; margin: 18px 0 8px; color: var(--p-muted); font-size: .8rem; }
+.p-or::before, .p-or::after { content: ''; flex: 1; height: 1px; background: var(--p-line); }

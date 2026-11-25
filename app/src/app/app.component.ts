@@ -7,7 +7,7 @@ import { DataService } from './core/data.service';
 import { StaffAuthService } from './core/staff-auth.service';
 import { Ui } from './core/ui';
 import { MODULES } from './staff/more.page';
-import { APP_AUTH_CALLBACK } from './portal/portal.service';
+import { APP_AUTH_CALLBACK, GOOGLE_FOR_KEY } from './portal/portal.service';
 
 interface Tab { label: string; url: string; icon: string; query?: Record<string, string>; area?: string; }
 
@@ -177,7 +177,9 @@ export class AppComponent implements OnInit {
       const code = new URL(url.replace(/^[a-z.]+:\/\//, 'https://x/')).searchParams.get('code');
       const { Browser } = await import('@capacitor/browser');
       await Browser.close().catch(() => undefined);
-      if (code) void this.router.navigate(['/portal/sign-in'], { queryParams: { code } });
+      let forStaff = false;
+      try { forStaff = localStorage.getItem(GOOGLE_FOR_KEY) === 'staff'; } catch { /* private mode */ }
+      if (code) void this.router.navigate([forStaff ? '/staff/sign-in' : '/portal/sign-in'], { queryParams: { code } });
     });
   }
   async signOut() {

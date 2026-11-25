@@ -39,6 +39,7 @@ export const ACCESS: Record<string, StaffRole[]> = {
 };
 
 const TOKEN_KEY = 'dbh.staff.token';
+type LoginResult = { status: 'approved' | 'pending'; token?: string; staff: StaffMe };
 const read = () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } };
 const write = (v: string | null) => { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch { /* private mode */ } };
 
@@ -97,7 +98,31 @@ export class StaffAuthService {
   }
 
   async login(email: string, password: string): Promise<'approved' | 'pending'> {
-    const r = await this.call<{ status: 'approved' | 'pending'; token?: string; staff: StaffMe }>('staff_login', { p_email: email, p_password: password });
+    return this.applyLogin(await this.call<LoginResult>('staff_login', { p_email: email, p_password: password }));
+  }
+
+  // ---------- Continue with Google (staff accounts that use that Google email) ----------
+  /** Go to Google. Web: comes back to /staff/sign-in?code=…; Android: opens Google in the browser. */
+  async googleStart() {
+    try { localStorage.setItem('dbh.google.for', 'staff'); } catch { /* private mode */ }
+    const { Capacitor } = await import('@capacitor/core');
+    if (Capacitor.isNativePlatform()) {
+      const url = await this.data.authGoogleUrl('ke.dantesras.app://auth-callback');
+      const { Browser } = await import('@capacitor/browser');
+      await Browser.open({ url });
+    } else {
+      location.href = await this.data.authGoogleUrl(new URL('staff/sign-in', document.baseURI).href);
+    }
+  }
+  async googleFinish(code: string) {
+    try { localStorage.removeItem('dbh.google.for'); } catch { /* private mode */ }
+    return this.applyLogin(await this.data.authFinishGoogleStaff<LoginResult>(code));
+  }
+  /** Test mode only: "Google" without a Google account. */
+  async testGoogle(email: string) {
+    return this.applyLogin(await this.call<LoginResult>('staff_test_google', { p_email: email.trim() }));
+  }
+  private applyLogin(r: LoginResult): 'approved' | 'pending' {
     this.me.set(r.staff);
     if (r.status === 'approved' && r.token) {
       this.token.set(r.token);

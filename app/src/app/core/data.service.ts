@@ -98,6 +98,16 @@ export class DataService {
     if (error) throw this.authError(error);
     return this.portalFromAuth();
   }
+  /** Staff back from Google: sign in the staff account that uses this Google email. */
+  async authFinishGoogleStaff<T>(code: string): Promise<T> {
+    const { error } = await this.auth.auth.exchangeCodeForSession(code);
+    if (error) throw this.authError(error);
+    try {
+      return await this.run<T>(this.auth.rpc('staff_login_google', {}));
+    } finally {
+      await this.auth.auth.signOut({ scope: 'local' }).catch(() => undefined);
+    }
+  }
   private async portalFromAuth() {
     try {
       return await this.run<{ token: string; is_new: boolean; client_id: string }>(this.auth.rpc('portal_from_auth', {}));
