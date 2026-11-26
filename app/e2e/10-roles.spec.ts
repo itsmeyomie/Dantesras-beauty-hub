@@ -140,3 +140,45 @@ test('finisher login lands on My day with jobs marked "Finish for" and no walk-i
   await expect(v.getByTestId('walkin')).toHaveCount(0);
   await expect(page.getByTestId('staff-tabs').getByRole('link', { name: 'Checkout' })).toHaveCount(0);
 });
+
+test('owner assigns an "any stylist" online request to a stylist + finisher; the stylist accepts it, the finisher sees it', async ({ page, request }) => {
+  const tag = Date.now().toString(36).slice(-5);
+  const staff = await (await (await ownerApi(request)).get(`${API}/staff?select=id,name&name=in.(Faith Wambui,Wanjiku Kamau)`)).json() as { id: string; name: string }[];
+  const faith = staff.find((s) => s.name === 'Faith Wambui')!.id;
+  const wanjiku = staff.find((s) => s.name === 'Wanjiku Kamau')!.id;
+  const guest = `Anyone ${tag}`;
+  const late = new Date(); late.setHours(23, 15, 0, 0);
+  const bid = await addBooking(request, { status: 'requested', source: 'Online', scheduled_at: late.toISOString(), guest_name: guest });
+
+  // owner: Bookings → Online → Assign stylist (main + finisher)
+  await loginAs(page, request, 'owner');
+  await page.goto('/bookings');
+  const v = view(page);
+  await v.locator('ion-segment-button').filter({ hasText: 'Online' }).click();
+  const card = v.getByTestId('request').filter({ hasText: guest });
+  await expect(card).toContainText('Any stylist');
+  await card.getByTestId('request-assign').click();
+  const sheet = page.getByTestId('assign-sheet');
+  await sheet.getByTestId(`assign-${wanjiku}`).click();
+  await sheet.getByTestId(`finisher-${faith}`).click();
+  await sheet.getByTestId('assign-save').click();
+  await toast(page, 'Assigned to Wanjiku + finisher Faith');
+  await expect(v.getByTestId('request').filter({ hasText: guest })).toContainText('Asked for');
+  const crew = await (await (await ownerApi(request)).get(`${API}/booking_staff?select=staff_id,part&booking_id=eq.${bid}`)).json() as { staff_id: string; part: string }[];
+  expect(crew.find((c) => c.staff_id === wanjiku)?.part).toBe('main');
+  expect(crew.find((c) => c.staff_id === faith)?.part).toBe('finisher');
+
+  // the stylist sees it on Today and accepts it
+  await loginAs(page, request, 'stylist');
+  await page.goto('/my-day');
+  const job = view(page).getByTestId('my-job').filter({ hasText: guest });
+  await job.getByTestId('job-accept').click();
+  await answerAlert(page, 'OK', '');
+  await toast(page, /Accepted|Booking accepted/);
+  await expect(job.getByTestId('job-accept')).toHaveCount(0);
+
+  // the finisher sees it as "Finish for Wanjiku"
+  await loginAs(page, request, 'finisher');
+  await page.goto('/my-day');
+  await expect(view(page).getByTestId('my-job').filter({ hasText: guest }).getByTestId('finish-for')).toHaveText('Finish for Wanjiku');
+});
