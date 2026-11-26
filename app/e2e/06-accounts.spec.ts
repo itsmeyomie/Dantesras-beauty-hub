@@ -110,3 +110,36 @@ test('manager sees everything except owner-only areas', async ({ page, request }
   await page.goto('/settings');
   await expect(page).toHaveURL(/\/dashboard$/);
 });
+
+test('a stylist approved after the owner opened the app shows up in New booking and Assign at once', async ({ page, request }) => {
+  await loginAs(page, request, 'owner');
+  await page.goto('/bookings');                                    // the app has loaded the team now
+  const name = `Late Joiner ${Date.now().toString(36).slice(-5)}`;
+  const email = `${name.replace(/\s/g, '.').toLowerCase()}@gmail.com`;
+  await request.post('http://localhost:54329/rest/v1/rpc/staff_signup', { data: { p: { name, email, password: 'secret123', role: 'stylist' } } });
+  // approved somewhere else (another owner's phone)
+  const owner2 = await (await request.post('http://localhost:54329/rest/v1/rpc/staff_login', { data: { p_email: STAFF.owner, p_password: 'test1234' } })).json();
+  const pend = await (await request.post('http://localhost:54329/rest/v1/rpc/staff_requests', { data: { p_token: owner2.token } })).json();
+  const me = (pend as { id: string; email: string }[]).find((s) => s.email === email)!;
+  await request.post('http://localhost:54329/rest/v1/rpc/staff_approve', { data: { p_token: owner2.token, p_id: me.id, p_role: 'stylist' } });
+
+  // same open app, no reload: New booking lists the new stylist
+  const v = view(page);
+  await v.locator('ion-header ion-button').filter({ hasText: 'New' }).click();
+  await page.waitForTimeout(800);
+  await page.locator('ion-modal.show-modal ion-select').filter({ hasText: 'Stylist' }).first().click();
+  await expect(page.locator('ion-alert').filter({ visible: true }).getByText(name)).toBeVisible();
+});
+
+test('Team screen fits a phone: no sideways scrolling, unpaid shown per person', async ({ page, request }) => {
+  await loginAs(page, request, 'owner');
+  await page.goto('/staff-list');
+  const v = view(page);
+  await expect(v.getByTestId('team-row').first()).toBeVisible();
+  await expect(v.getByTestId('team-row').first()).toContainText('Unpaid');
+  const spill = await page.evaluate(() => {
+    const els = [...document.querySelectorAll('[data-testid="team-list"], [data-testid="team-row"]')] as HTMLElement[];
+    return els.some((e) => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > window.innerWidth + 1);
+  });
+  expect(spill).toBe(false);
+});

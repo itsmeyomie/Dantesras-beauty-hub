@@ -148,8 +148,12 @@ export class AppComponent implements OnInit {
 
   async ngOnInit() {
     this.router.events.subscribe((e) => {
-      if (e instanceof NavigationEnd) this.url.set(e.urlAfterRedirects.split('?')[0]);
+      if (e instanceof NavigationEnd) {
+        this.url.set(e.urlAfterRedirects.split('?')[0]);
+        this.freshTeam();
+      }
     });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') this.freshTeam(); });
     void this.listenForAppLinks();
     void this.openStaffHome();
     if (!this.data.configured) return;
@@ -158,6 +162,11 @@ export class AppComponent implements OnInit {
     } catch (e) {
       this.ui.error(e);
     }
+  }
+  /** Staff screens: keep the team list fresh (new people approved on another phone, roles changed). */
+  private freshTeam() {
+    if (this.kind() !== 'staff' || !this.auth.token() || !this.data.configured) return;
+    void this.data.refreshStaff(20_000).catch(() => undefined);
   }
   /** App opened on the client home while a staff member is signed in on this phone: go to their own home. */
   private async openStaffHome() {

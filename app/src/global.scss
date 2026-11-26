@@ -60,6 +60,13 @@ table.t { width: 100%; border-collapse: collapse; font-size: .9rem; }
 table.t th { text-align: left; font-weight: 600; color: var(--app-muted); font-size: .75rem; text-transform: uppercase; padding: 6px 4px; border-bottom: 1px solid var(--app-border); }
 table.t td { padding: 8px 4px; border-bottom: 1px solid var(--app-border); vertical-align: top; }
 table.t td.num, table.t th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* phones: compact tables; a table that is still too wide scrolls inside its card, never the whole page */
+@media (max-width: 600px) {
+  table.t { font-size: .8rem; }
+  table.t th { font-size: .62rem; letter-spacing: 0; padding: 6px 3px; }
+  table.t td { padding: 7px 3px; overflow-wrap: anywhere; }
+}
+.card:has(table.t), .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .72rem; font-weight: 600; background: #eee; color: #333; }
 .pill.salon { background: #f4e3e6; color: var(--app-maroon); }
 .pill.home { background: #f7efd6; color: #7a5d00; }

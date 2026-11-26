@@ -90,7 +90,7 @@ export class StaffRequestsPage implements ViewWillEnter {
     try {
       await this.auth.approve(s.id, this.roleFor(s));
       this.ui.toast(`${s.name} approved as ${this.label(this.roleFor(s))}`);
-      await this.load();
+      await Promise.all([this.load(), this.data.refreshStaff()]);
     } catch (e) {
       this.ui.error(e);
     }

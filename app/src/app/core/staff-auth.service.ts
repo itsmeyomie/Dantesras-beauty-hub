@@ -128,6 +128,7 @@ export class StaffAuthService {
       this.token.set(r.token);
       write(r.token);
       void this.notify.register('staff', r.token);
+      void this.data.loadReference().catch(() => undefined); // the app opened signed out: load the team now
     }
     return r.status;
   }

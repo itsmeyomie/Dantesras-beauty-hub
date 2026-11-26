@@ -407,8 +407,10 @@ export class BookingsPage implements ViewWillEnter {
     this.busy.set([]);
     this.who = { client: null, guestName: '' };
     this.deposit = { method: 'mpesa_till', amount: null };
+    void this.data.refreshStaff().catch(() => undefined); // people approved since the app opened
   }
   edit(b: Booking) {
+    void this.data.refreshStaff().catch(() => undefined);
     const at = b.scheduled_at ? new Date(b.scheduled_at) : new Date();
     this.form.set({
       id: b.id, channel: b.channel, source: b.source, date: ymd(at),

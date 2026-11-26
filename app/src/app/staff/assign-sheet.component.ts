@@ -110,7 +110,8 @@ export class AssignSheetComponent {
     this.loading.set(true);
     try {
       const [from, to] = dayRange(startOfDay(new Date(this.start())));
-      this.around.set(await this.data.activeToday(from, to));
+      const [around] = await Promise.all([this.data.activeToday(from, to), this.data.refreshStaff()]);
+      this.around.set(around);
     } catch (e) {
       this.ui.error(e);
     } finally {

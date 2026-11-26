@@ -27,24 +27,19 @@ type Period = 'today' | 'week' | 'biweek' | 'month';
       <div class="page-wrap">
         <app-not-configured />
         <p class="muted small">Commission is worked out automatically at checkout (on the price after discount, split on joint work). Transport fees go to the stylists who travelled.</p>
-        <div class="card">
+        <div class="card team-list" data-testid="team-list">
           @if (!balances().length) { <div class="empty">No staff yet.</div> }
-          <table class="t">
-            @if (balances().length) {
-              <thead><tr><th>Staff</th><th class="num">Commission</th><th class="num">Transport</th><th class="num">Paid out</th><th class="num">Unpaid</th></tr></thead>
-            }
-            <tbody>
-              @for (b of balances(); track b.staff_id) {
-                <tr (click)="open(b)" style="cursor:pointer" [style.opacity]="b.active ? 1 : 0.45">
-                  <td><strong>{{ b.name }}</strong><br /><span class="muted small">Paid {{ b.payout_schedule }}</span></td>
-                  <td class="num">{{ b.commission_total | ksh }}</td>
-                  <td class="num">{{ b.transport_total | ksh }}</td>
-                  <td class="num">{{ b.paid_out | ksh }}</td>
-                  <td class="num"><strong [class.maroon]="b.unpaid > 0">{{ b.unpaid | ksh }}</strong></td>
-                </tr>
-              }
-            </tbody>
-          </table>
+          @for (b of balances(); track b.staff_id) {
+            <button class="tm" (click)="open(b)" [style.opacity]="b.active ? 1 : 0.45" data-testid="team-row">
+              <span class="who"><strong>{{ b.name }}</strong><span class="muted small">Paid {{ b.payout_schedule }}</span></span>
+              <span class="owed"><span class="muted small">Unpaid</span><strong [class.maroon]="b.unpaid > 0">{{ b.unpaid | ksh }}</strong></span>
+              <span class="nums small muted">
+                <span>Commission <b>{{ b.commission_total | ksh }}</b></span>
+                <span>Transport <b>{{ b.transport_total | ksh }}</b></span>
+                <span>Paid out <b>{{ b.paid_out | ksh }}</b></span>
+              </span>
+            </button>
+          }
         </div>
       </div>
 
@@ -137,6 +132,18 @@ type Period = 'today' | 'week' | 'biweek' | 'month';
         </ng-template>
       </ion-modal>
     </ion-content>
+  `,
+  styles: `
+    .team-list { padding: 4px 12px; }
+    .tm { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; width: 100%; text-align: left; background: none; border: 0;
+      border-bottom: 1px solid rgba(0,0,0,.06); padding: 12px 2px; font: inherit; color: inherit; cursor: pointer; }
+    .tm:last-child { border-bottom: 0; }
+    .who { display: flex; flex-direction: column; min-width: 0; }
+    .who strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .owed { display: flex; flex-direction: column; align-items: flex-end; }
+    .owed strong { font-size: 1.05rem; }
+    .nums { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 4px; }
+    .nums b { color: #161214; font-weight: 600; }
   `,
 })
 export class StaffPage implements ViewWillEnter {

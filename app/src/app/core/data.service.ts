@@ -139,7 +139,17 @@ export class DataService {
   }
 
   // ---------- reference data ----------
+  private staffLoadedAt = 0;
+  /** Re-read the team and roles (people approved or changed on another phone show up). Skips if read in the last `minAgeMs`. */
+  async refreshStaff(minAgeMs = 0): Promise<void> {
+    if (Date.now() - this.staffLoadedAt < minAgeMs) return;
+    this.staffLoadedAt = Date.now();
+    const [staff, roles] = await Promise.all([this.run<Staff[]>(this.db.from('staff').select(STAFF_COLUMNS).order('name')), this.loadRoles()]);
+    this.roles.set(roles);
+    this.staff.set(staff);
+  }
   async loadReference(): Promise<void> {
+    this.staffLoadedAt = Date.now();
     const [staff, cats, services, products, courses, settings, roles] = await Promise.all([
       this.run<Staff[]>(this.db.from('staff').select(STAFF_COLUMNS).order('name')),
       this.run<Category[]>(this.db.from('service_categories').select('*').order('sort')),
