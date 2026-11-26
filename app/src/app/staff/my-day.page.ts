@@ -10,6 +10,7 @@ import { StaffHeaderComponent } from './staff-header.component';
 import { TeamBoardComponent } from './team-board.component';
 import { isMain } from '../core/team';
 import { checkIn } from '../core/checkin';
+import { acceptRequest, declineRequest } from '../core/answer-request';
 
 export const isMine = (b: Booking, id?: string) => !!id && (b.booking_staff ?? []).some((s) => s.staff_id === id);
 export const bookingValue = (b: Booking) => (b.booking_services ?? []).reduce((a, s) => a + Number(s.price), 0) + Number(b.transport_fee ?? 0);
@@ -45,6 +46,9 @@ export const STATUS: Record<string, { label: string; tone: string }> = {
                   <span class="p-small" data-testid="next-finish">You finish {{ mainOf(b) }}'s work</span>
                 } @else if (b.status === 'in_progress') {
                   <button class="p-pill-white" (click)="checkout(b)" data-testid="next-checkout">Finish · checkout</button>
+                } @else if (b.status === 'requested') {
+                  <button class="p-pill-white" (click)="accept(b)" data-testid="next-accept">Accept</button>
+                  <button class="p-link" style="color:#fff;opacity:.9" (click)="decline(b)" data-testid="next-decline">Decline</button>
                 } @else {
                   <button class="p-pill-white" (click)="start(b)" data-testid="next-start">Client arrived · start</button>
                 }
@@ -65,6 +69,10 @@ export const STATUS: Record<string, { label: string; tone: string }> = {
                 @if (finishing(b)) { <div class="p-small maroon" data-testid="finish-for">Finish for {{ mainOf(b) }}</div> }</div>
               @if (finishing(b)) { <span class="p-badge info">{{ b.status === 'in_progress' ? 'Finish now' : 'Finisher' }}</span> }
               @else if (b.status === 'in_progress') { <button class="p-btn small" (click)="checkout(b)">Checkout</button> }
+              @else if (b.status === 'requested') {
+                <button class="p-link" style="color:#9b1c1c" (click)="decline(b)" data-testid="job-decline">Decline</button>
+                <button class="p-btn small" (click)="accept(b)" data-testid="job-accept">Accept</button>
+              }
               @else if (['booked', 'pending', 'waiting'].includes(b.status)) { <button class="p-btn small ghost" (click)="start(b)">Start</button> }
               @else { <span class="p-badge {{ status(b).tone }}">{{ status(b).label }}</span> }
             </div>
@@ -167,6 +175,12 @@ export class MyDayPage implements ViewWillEnter, ViewWillLeave {
     } catch (e) {
       this.ui.error(e);
     }
+  }
+  async accept(b: Booking) {
+    if (await acceptRequest(this.data, this.ui, b)) await this.load();
+  }
+  async decline(b: Booking) {
+    if (await declineRequest(this.data, this.ui, b)) await this.load();
   }
   async take(b: Booking) {
     try {

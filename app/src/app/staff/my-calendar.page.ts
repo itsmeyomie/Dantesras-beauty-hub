@@ -8,6 +8,7 @@ import { StaffAuthService } from '../core/staff-auth.service';
 import { KshPipe, Ui, ymd } from '../core/ui';
 import { STATUS, bookingValue, isMine, serviceNames } from './my-day.page';
 import { StaffHeaderComponent } from './staff-header.component';
+import { acceptRequest, declineRequest } from '../core/answer-request';
 
 /** Stylist: my bookings on a month calendar, and the chosen day's list. */
 @Component({
@@ -26,7 +27,12 @@ import { StaffHeaderComponent } from './staff-header.component';
             <span class="p-t">{{ b.scheduled_at | date: 'HH:mm' }}</span>
             <div class="p-spacer"><b>{{ b.online && b.status === 'requested' ? 'Online request · ' : '' }}{{ b.clients?.name ?? b.guest_name }}</b>
               <div class="p-muted p-small">{{ names(b) }} · {{ value(b) | ksh }}{{ b.channel === 'home' ? ' · home' : '' }}</div></div>
-            <span class="p-badge {{ status(b).tone }}">{{ status(b).label }}</span>
+            @if (b.status === 'requested') {
+              <button class="p-link" style="color:#9b1c1c" (click)="decline(b)" data-testid="cal-decline">Decline</button>
+              <button class="p-btn small" (click)="accept(b)" data-testid="cal-accept">Accept</button>
+            } @else {
+              <span class="p-badge {{ status(b).tone }}">{{ status(b).label }}</span>
+            }
           </div>
         } @empty { <div class="p-empty">Nothing booked for you this day.</div> }
       </div>
@@ -52,6 +58,12 @@ export class MyCalendarPage implements ViewWillEnter {
   value = bookingValue;
   status(b: Booking) {
     return STATUS[b.status] ?? { label: b.status, tone: 'info' };
+  }
+  async accept(b: Booking) {
+    if ((await acceptRequest(this.data, this.ui, b)) && this.shown) await this.loadMonth(this.shown);
+  }
+  async decline(b: Booking) {
+    if ((await declineRequest(this.data, this.ui, b)) && this.shown) await this.loadMonth(this.shown);
   }
   ionViewWillEnter() {
     if (this.shown) void this.loadMonth(this.shown);

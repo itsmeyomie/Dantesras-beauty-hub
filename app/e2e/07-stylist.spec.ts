@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { loginAs, toast, view, ownerApi } from './helpers';
+import { answerAlert, loginAs, toast, view, ownerApi } from './helpers';
 
 // Stylist app: my day, take a walk-in, calendar, earnings, profile.
 
@@ -77,4 +77,41 @@ test('stylist updates her speciality; clients see it when choosing a stylist', a
   const res = await page.request.post('http://localhost:54329/rest/v1/rpc/portal_catalog', { data: {} });
   const cat = await res.json();
   expect(cat.stylists.find((s: { name: string }) => s.name === 'Wanjiku Kamau').specialty).toBe(spec);
+});
+
+test('stylist accepts and declines online requests from her day', async ({ page, request }) => {
+  const api = 'http://localhost:54329/rest/v1';
+  const owner = await ownerApi(request);
+  const me = (await (await owner.get(`${api}/staff?select=id&name=eq.Wanjiku%20Kamau`)).json())[0];
+  const at = new Date();
+  at.setHours(23, 0, 0, 0);
+  const ask = async (guest: string) => {
+    const [b] = await (await owner.post(`${api}/bookings`, { headers: { Prefer: 'return=representation' },
+      data: { guest_name: guest, channel: 'salon', status: 'requested', source: 'Online', scheduled_at: at.toISOString(), duration_min: 30 } })).json();
+    await owner.post(`${api}/booking_staff`, { data: { booking_id: b.id, staff_id: me.id } });
+    return b.id as string;
+  };
+  const n = Date.now() % 100000;
+  const yes = `Online Yes ${n}`, no = `Online No ${n}`;
+  const yesId = await ask(yes);
+  const noId = await ask(no);
+
+  await page.goto('/my-day');
+  const v = view(page);
+  const row = v.getByTestId('my-job').filter({ hasText: yes });
+  await expect(row).toContainText(yes);
+  await row.getByTestId('job-accept').click();
+  await answerAlert(page, /OK|Accept|Save/i, 'See you then');
+  await toast(page, /Accepted|Booking accepted/);
+  await expect(row.getByTestId('job-accept')).toHaveCount(0);
+
+  const other = v.getByTestId('my-job').filter({ hasText: no });
+  await other.getByTestId('job-decline').click();
+  await answerAlert(page, /OK|Decline|Save/i, 'Fully booked, try tomorrow');
+  await toast(page, /Declined/);
+  await expect(v.getByTestId('my-job').filter({ hasText: no })).toHaveCount(0);
+
+  const st = await (await owner.get(`${api}/bookings?select=id,status&id=in.(${yesId},${noId})`)).json();
+  expect(st.find((b: { id: string }) => b.id === yesId).status).toMatch(/pending|booked/);
+  expect(st.find((b: { id: string }) => b.id === noId).status).toBe('declined');
 });
