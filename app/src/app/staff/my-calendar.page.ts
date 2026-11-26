@@ -6,7 +6,8 @@ import { MonthCalendarComponent } from '../core/month-calendar.component';
 import { Booking } from '../core/models';
 import { StaffAuthService } from '../core/staff-auth.service';
 import { KshPipe, Ui, ymd } from '../core/ui';
-import { STATUS, bookingValue, isMine, serviceNames } from './my-day.page';
+import { STATUS, bookingValue, canHandOver, isMine, serviceNames } from './my-day.page';
+import { AssignSheetComponent } from './assign-sheet.component';
 import { StaffHeaderComponent } from './staff-header.component';
 import { acceptRequest, declineRequest } from '../core/answer-request';
 
@@ -14,7 +15,7 @@ import { acceptRequest, declineRequest } from '../core/answer-request';
 @Component({
   selector: 'app-my-calendar',
   host: { class: 'portal' },
-  imports: [DatePipe, KshPipe, IonContent, MonthCalendarComponent, StaffHeaderComponent],
+  imports: [DatePipe, KshPipe, IonContent, MonthCalendarComponent, StaffHeaderComponent, AssignSheetComponent],
   template: `
     <ion-content>
       <div class="p-wrap">
@@ -26,7 +27,8 @@ import { acceptRequest, declineRequest } from '../core/answer-request';
           <div class="p-card p-row" data-testid="cal-booking">
             <span class="p-t">{{ b.scheduled_at | date: 'HH:mm' }}</span>
             <div class="p-spacer"><b>{{ b.online && b.status === 'requested' ? 'Online request · ' : '' }}{{ b.clients?.name ?? b.guest_name }}</b>
-              <div class="p-muted p-small">{{ names(b) }} · {{ value(b) | ksh }}{{ b.channel === 'home' ? ' · home' : '' }}</div></div>
+              <div class="p-muted p-small">{{ names(b) }} · {{ value(b) | ksh }}{{ b.channel === 'home' ? ' · home' : '' }}</div>
+              @if (canHandOver(b)) { <button class="p-link p-small" style="padding:2px 0" (click)="assigning.set(b)" data-testid="cal-handover">Hand over / add finisher</button> }</div>
             @if (b.status === 'requested') {
               <button class="p-link" style="color:#9b1c1c" (click)="decline(b)" data-testid="cal-decline">Decline</button>
               <button class="p-btn small" (click)="accept(b)" data-testid="cal-accept">Accept</button>
@@ -36,6 +38,7 @@ import { acceptRequest, declineRequest } from '../core/answer-request';
           </div>
         } @empty { <div class="p-empty">Nothing booked for you this day.</div> }
       </div>
+      <app-assign-sheet [booking]="assigning()" (closed)="assigning.set(null)" (done)="assigning.set(null); reload()" />
     </ion-content>
   `,
 })
@@ -58,6 +61,13 @@ export class MyCalendarPage implements ViewWillEnter {
   value = bookingValue;
   status(b: Booking) {
     return STATUS[b.status] ?? { label: b.status, tone: 'info' };
+  }
+  readonly assigning = signal<Booking | null>(null);
+  canHandOver(b: Booking) {
+    return canHandOver(b, this.auth.me()?.id, this.data);
+  }
+  reload() {
+    if (this.shown) void this.loadMonth(this.shown);
   }
   async accept(b: Booking) {
     if ((await acceptRequest(this.data, this.ui, b)) && this.shown) await this.loadMonth(this.shown);

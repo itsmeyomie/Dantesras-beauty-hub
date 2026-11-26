@@ -8,6 +8,7 @@ import { StaffAuthService } from '../core/staff-auth.service';
 import { KshPipe, Ui, dayRange, startOfDay } from '../core/ui';
 import { StaffHeaderComponent } from './staff-header.component';
 import { TeamBoardComponent } from './team-board.component';
+import { AssignSheetComponent } from './assign-sheet.component';
 import { isMain } from '../core/team';
 import { checkIn } from '../core/checkin';
 import { acceptRequest, declineRequest } from '../core/answer-request';
@@ -16,6 +17,13 @@ export const isMine = (b: Booking, id?: string) => !!id && (b.booking_staff ?? [
 export const bookingValue = (b: Booking) => (b.booking_services ?? []).reduce((a, s) => a + Number(s.price), 0) + Number(b.transport_fee ?? 0);
 export const bookingPaid = (b: Booking) => (b.payments ?? []).filter((p) => p.kind === 'deposit').reduce((a, p) => a + Number(p.amount), 0);
 export const serviceNames = (b: Booking) => (b.booking_services ?? []).map((s) => s.name).join(', ') || 'Service not chosen yet';
+/** A main stylist can hand their own open job to someone else, or add a finisher. */
+export const canHandOver = (b: Booking, id: string | undefined, data: DataService) => {
+  if (!id || !['requested', 'pending', 'booked', 'waiting', 'in_progress'].includes(b.status)) return false;
+  if (!(b.booking_staff ?? []).some((s) => s.staff_id === id && s.part !== 'finisher')) return false;
+  const me = data.staff().find((s) => s.id === id);
+  return !!me && isMain(me, data.roles());
+};
 export const STATUS: Record<string, { label: string; tone: string }> = {
   requested: { label: 'To confirm', tone: 'wait' }, pending: { label: 'Pending', tone: 'wait' }, booked: { label: 'Booked', tone: 'ok' },
   waiting: { label: 'Waiting', tone: 'wait' }, in_progress: { label: 'In chair', tone: 'info' }, completed: { label: 'Done', tone: 'done' },
@@ -26,7 +34,7 @@ export const STATUS: Record<string, { label: string; tone: string }> = {
 @Component({
   selector: 'app-my-day',
   host: { class: 'portal' },
-  imports: [DatePipe, KshPipe, IonContent, IonRefresher, IonRefresherContent, StaffHeaderComponent, TeamBoardComponent],
+  imports: [DatePipe, KshPipe, IonContent, IonRefresher, IonRefresherContent, StaffHeaderComponent, TeamBoardComponent, AssignSheetComponent],
   template: `
     <ion-content>
       <ion-refresher slot="fixed" (ionRefresh)="refresh($event)"><ion-refresher-content></ion-refresher-content></ion-refresher>
@@ -66,7 +74,8 @@ export const STATUS: Record<string, { label: string; tone: string }> = {
               <span class="t">{{ b.scheduled_at | date: 'HH:mm' }}</span>
               <div class="p-spacer"><b>{{ b.clients?.name ?? b.guest_name }}</b>
                 <div class="p-muted p-small">{{ names(b) }}{{ b.channel === 'home' ? ' · home · ' + b.address : '' }}</div>
-                @if (finishing(b)) { <div class="p-small maroon" data-testid="finish-for">Finish for {{ mainOf(b) }}</div> }</div>
+                @if (finishing(b)) { <div class="p-small maroon" data-testid="finish-for">Finish for {{ mainOf(b) }}</div> }
+                @else if (canHandOver(b)) { <button class="p-link p-small" style="padding:2px 0" (click)="assigning.set(b)" data-testid="job-handover">Hand over / add finisher</button> }</div>
               @if (finishing(b)) { <span class="p-badge info">{{ b.status === 'in_progress' ? 'Finish now' : 'Finisher' }}</span> }
               @else if (b.status === 'in_progress') { <button class="p-btn small" (click)="checkout(b)">Checkout</button> }
               @else if (b.status === 'requested') {
@@ -91,6 +100,7 @@ export const STATUS: Record<string, { label: string; tone: string }> = {
 
         <app-team-board [bookings]="board()" [now]="now()" />
       </div>
+      <app-assign-sheet [booking]="assigning()" (closed)="assigning.set(null)" (done)="assigning.set(null); load()" />
     </ion-content>
   `,
 })
@@ -113,6 +123,10 @@ export class MyDayPage implements ViewWillEnter, ViewWillLeave {
       .sort((a, b) => (a.scheduled_at ?? a.created_at).localeCompare(b.scheduled_at ?? b.created_at));
   });
   /** walk-ins nobody has taken yet – only for people who serve clients (not finishers only) */
+  readonly assigning = signal<Booking | null>(null);
+  canHandOver(b: Booking) {
+    return canHandOver(b, this.auth.me()?.id, this.data);
+  }
   readonly waiting = computed(() => {
     const me = this.data.staff().find((s) => s.id === this.auth.me()?.id);
     if (me && !isMain(me, this.data.roles())) return [];

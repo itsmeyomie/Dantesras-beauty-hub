@@ -182,3 +182,63 @@ test('owner assigns an "any stylist" online request to a stylist + finisher; the
   await page.goto('/my-day');
   await expect(view(page).getByTestId('my-job').filter({ hasText: guest }).getByTestId('finish-for')).toHaveText('Finish for Wanjiku');
 });
+
+test('stylist adds a finisher to her own job, then hands the job to another stylist; only new people are notified', async ({ page, request }) => {
+  const tag = Date.now().toString(36).slice(-5);
+  const owner = await ownerApi(request);
+  const staff = await (await owner.get(`${API}/staff?select=id,name&name=in.(Faith Wambui,Wanjiku Kamau)`)).json() as { id: string; name: string }[];
+  const faith = staff.find((s) => s.name === 'Faith Wambui')!.id;
+  const wanjiku = staff.find((s) => s.name === 'Wanjiku Kamau')!.id;
+  const other = await addStaff(request, `Other ${tag} Stylist`, ['stylist']);
+  const guest = `Handover ${tag}`;
+  const late = new Date(); late.setHours(23, 30, 0, 0);
+  const bid = await addBooking(request, { status: 'booked', scheduled_at: late.toISOString(), guest_name: guest }, [{ id: wanjiku, part: 'main' }]);
+  const tok: Record<string, string> = {};
+  for (const [who, email] of [[wanjiku, "stylist@dantesras.test"], [faith, "finisher@dantesras.test"]]) {
+    tok[who] = (await (await request.post(`${API}/rpc/staff_login`, { data: { p_email: email, p_password: "test1234" } })).json()).token;
+  }
+  const notes = async (who: string) =>
+    ((await (await request.post(`${API}/rpc/staff_notifications`, { data: { p_token: tok[who] } })).json()) as { title: string; body: string }[])
+      .filter((n) => n.body.includes(guest));
+  expect(await notes(wanjiku)).toHaveLength(1);
+
+  await loginAs(page, request, 'stylist');
+  await page.goto('/my-day');
+  const v = view(page);
+  const job = () => v.getByTestId('my-job').filter({ hasText: guest });
+  const sheet = page.getByTestId('assign-sheet');
+
+  // 1) add a finisher, keep the job
+  await job().getByTestId('job-handover').click();
+  await expect(sheet.getByTestId(`assign-${wanjiku}`)).toHaveClass(/on/);
+  await sheet.getByTestId(`finisher-${faith}`).click();
+  await sheet.getByTestId('assign-save').click();
+  await toast(page, 'Assigned to Wanjiku + finisher Faith');
+  await expect(job()).toBeVisible();
+  expect(await notes(wanjiku)).toHaveLength(1);                 // not notified again
+  expect((await notes(faith)).map((n) => n.title)).toEqual(['You finish a client']);
+
+  // 2) hand the job to another stylist (the finisher stays)
+  await job().getByTestId('job-handover').click();
+  await sheet.getByTestId(`assign-${other}`).click();
+  await sheet.getByTestId('assign-save').click();
+  await toast(page, 'Assigned to Other + finisher Faith');
+  await expect(job()).toHaveCount(0);                            // no longer on my day
+  const crew = await (await owner.get(`${API}/booking_staff?select=staff_id,part&booking_id=eq.${bid}`)).json() as { staff_id: string; part: string }[];
+  expect(crew.map((c) => `${c.staff_id}:${c.part}`).sort()).toEqual([`${faith}:finisher`, `${other}:main`].sort());
+  expect(await notes(faith)).toHaveLength(1);
+});
+
+test('finishers cannot hand over a job', async ({ page, request }) => {
+  const tag = Date.now().toString(36).slice(-5);
+  const staff = await (await (await ownerApi(request)).get(`${API}/staff?select=id,name&name=in.(Faith Wambui,Wanjiku Kamau)`)).json() as { id: string; name: string }[];
+  const faith = staff.find((s) => s.name === 'Faith Wambui')!.id;
+  const wanjiku = staff.find((s) => s.name === 'Wanjiku Kamau')!.id;
+  const guest = `NoHand ${tag}`;
+  await addBooking(request, { status: 'booked', scheduled_at: at(50), guest_name: guest }, [{ id: wanjiku, part: 'main' }, { id: faith, part: 'finisher' }]);
+  await loginAs(page, request, 'finisher');
+  await page.goto('/my-day');
+  const job = view(page).getByTestId('my-job').filter({ hasText: guest });
+  await expect(job.getByTestId('finish-for')).toBeVisible();
+  await expect(job.getByTestId('job-handover')).toHaveCount(0);
+});

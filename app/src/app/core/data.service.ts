@@ -352,10 +352,13 @@ export class DataService {
   }
   /** Main stylist(s) and an optional finisher on a booking. */
   async setBookingStaff(id: string, staffIds: string[], finisherIds: string[] = []) {
-    await this.run(this.db.from('booking_staff').delete().eq('booking_id', id));
     const rows = [...staffIds.map((s) => ({ booking_id: id, staff_id: s, part: 'main' })),
       ...finisherIds.filter((f) => !staffIds.includes(f)).map((s) => ({ booking_id: id, staff_id: s, part: 'finisher' }))];
-    if (rows.length) await this.run(this.db.from('booking_staff').insert(rows));
+    // remove only the people taken off; people who stay are not re-added (so they are not notified again)
+    let gone = this.db.from('booking_staff').delete().eq('booking_id', id);
+    if (rows.length) gone = gone.not('staff_id', 'in', `(${rows.map((r) => r.staff_id).join(',')})`);
+    await this.run(gone);
+    if (rows.length) await this.run(this.db.from('booking_staff').upsert(rows, { onConflict: 'booking_id,staff_id' }));
   }
   addDeposit(bookingId: string, p: PaymentInput) {
     return this.run<number>(this.db.rpc('add_deposit', {
