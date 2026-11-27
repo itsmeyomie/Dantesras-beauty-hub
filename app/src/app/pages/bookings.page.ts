@@ -9,7 +9,8 @@ import {
 import { addIcons } from 'ionicons';
 import { addOutline, chevronBackOutline, chevronForwardOutline, trashOutline } from 'ionicons/icons';
 import { DataService } from '../core/data.service';
-import { Booking, BookingService, CHANNELS, Client, Channel, PaymentInput, SOURCES, channelLabel } from '../core/models';
+import { Booking, BookingService, CHANNELS, Client, Channel, HairItem, PaymentInput, SOURCES, channelLabel } from '../core/models';
+import { bookingValue, hairNote } from '../staff/my-day.page';
 import { MonthCalendarComponent } from '../core/month-calendar.component';
 import { AssignSheetComponent } from '../staff/assign-sheet.component';
 import { crewNames, mainIds } from '../core/team';
@@ -23,6 +24,7 @@ import { KshPipe, Ui, addDays, ageFrom, dayRange, startOfDay, ymd } from '../cor
 interface BookingForm {
   id?: string; channel: Channel; source: string | null; date: string; time: string; duration_min: number;
   address: string; stylists_needed: number; transport_fee: number; notes: string;
+  hair_source: 'salon' | 'client' | null; hair: HairItem[];
 }
 
 @Component({
@@ -106,6 +108,7 @@ interface BookingForm {
               <div class="small">{{ serviceNames(b) }} · <strong>{{ value(b) | ksh }}</strong></div>
               <div class="small muted">With {{ staffNames(b) || 'no stylist yet' }} · {{ b.duration_min ?? 60 }} min
                 @if (b.channel === 'home') { · {{ b.address }} · transport {{ b.transport_fee | ksh }} }</div>
+              @if (hair(b)) { <div class="small" data-testid="hair-note"><strong>{{ hair(b) }}</strong></div> }
               <div class="small">Paid upfront: <strong>{{ deposits(b) | ksh }}</strong>
                 @if (b.status === 'pending') { <span class="maroon"> – needs {{ minDeposit() | ksh }} or full amount to hold the slot</span> }</div>
               @if (b.notes) { <div class="small muted">Note: {{ b.notes }}</div> }
@@ -203,6 +206,35 @@ interface BookingForm {
                   <ion-item lines="none" class="field"><ion-input label="Transport fee (agreed)" labelPlacement="stacked" type="number" [(ngModel)]="f.transport_fee"></ion-input></ion-item>
                 }
               </div>
+              @if (f.channel === 'home') {
+                <div class="hair-box" data-testid="hair-box">
+                  <div class="section-title" style="margin-top:4px">Hair</div>
+                  <ion-segment [value]="f.hair_source ?? ''" (ionChange)="f.hair_source = $any($event.detail.value) || null" data-testid="hair-source">
+                    <ion-segment-button value="salon"><ion-label>Salon brings hair</ion-label></ion-segment-button>
+                    <ion-segment-button value="client"><ion-label>Client has hair</ion-label></ion-segment-button>
+                  </ion-segment>
+                  @if (f.hair_source === 'salon') {
+                    @for (h of f.hair; track $index) {
+                      <div class="row small hair-line" style="margin-top:6px" data-testid="hair-line">
+                        <span>{{ h.name }} × {{ h.qty }}</span><span class="spacer"></span><strong>{{ h.price * h.qty | ksh }}</strong>
+                        <ion-button size="small" fill="clear" color="danger" (click)="removeHair(f, $index)" aria-label="Remove hair"><ion-icon slot="icon-only" name="trash-outline"></ion-icon></ion-button>
+                      </div>
+                    }
+                    <div class="form-grid" style="margin-top:6px">
+                      <ion-item lines="none" class="field">
+                        <ion-select label="Hair from stock" labelPlacement="stacked" interface="popover" [(ngModel)]="hairPick" placeholder="Choose" data-testid="hair-product">
+                          @for (p of hairProducts(); track p.id) { <ion-select-option [value]="p.id">{{ p.name }} · {{ p.price | ksh }} ({{ p.stock_qty }} in stock)</ion-select-option> }
+                        </ion-select>
+                      </ion-item>
+                      <ion-item lines="none" class="field"><ion-input label="Packets / pieces" labelPlacement="stacked" type="number" min="1" [(ngModel)]="hairQty"></ion-input></ion-item>
+                    </div>
+                    <ion-button size="small" fill="outline" (click)="addHair(f)" data-testid="hair-add">+ Add hair</ion-button>
+                    <p class="muted small" style="margin:4px 0 0">It goes on her bill at checkout and comes out of stock.</p>
+                  } @else if (f.hair_source === 'client') {
+                    <p class="muted small" style="margin:6px 0 0">The stylist doesn't carry hair.</p>
+                  }
+                </div>
+              }
               <ion-item lines="none" class="field"><ion-textarea label="Notes" labelPlacement="stacked" autoGrow="true" [(ngModel)]="f.notes"></ion-textarea></ion-item>
 
               @if (!f.id && f.channel !== 'walkin') {
@@ -375,7 +407,29 @@ export class BookingsPage implements ViewWillEnter {
     return mainIds(b);
   }
   value(b: Booking) {
-    return (b.booking_services ?? []).reduce((a, s) => a + Number(s.price), 0) + Number(b.transport_fee ?? 0);
+    return bookingValue(b);
+  }
+  readonly hair = hairNote;
+  /** products the salon can carry to a home service */
+  readonly hairProducts = computed(() => this.data.products().filter((p) => p.status === 'active'));
+  hairPick: string | null = null;
+  hairQty = 1;
+  addHair(f: BookingForm): void {
+    const p = this.data.products().find((x) => x.id === this.hairPick);
+    const qty = Number(this.hairQty);
+    if (!p) { void this.ui.toast('Choose the hair', 'danger'); return; }
+    if (!(qty > 0)) { void this.ui.toast('Enter how many', 'danger'); return; }
+    const i = f.hair.findIndex((h) => h.product_id === p.id);
+    if (i >= 0) f.hair[i] = { ...f.hair[i], qty: f.hair[i].qty + qty };
+    else f.hair.push({ product_id: p.id, name: p.name, qty, price: Number(p.price) });
+    this.hairPick = null;
+    this.hairQty = 1;
+  }
+  removeHair(f: BookingForm, i: number) {
+    f.hair.splice(i, 1);
+  }
+  private hairTotal(f: BookingForm | null) {
+    return f?.channel === 'home' && f.hair_source === 'salon' ? f.hair.reduce((a, h) => a + h.price * h.qty, 0) : 0;
   }
   deposits(b: Booking) {
     return (b.payments ?? []).filter((p) => p.kind === 'deposit').reduce((a, p) => a + Number(p.amount), 0);
@@ -397,11 +451,13 @@ export class BookingsPage implements ViewWillEnter {
     return a === null ? null : a <= (Number(this.data.setting('kids_max_age', 12))) ? 'kids' : 'adult';
   }
   formTotal() {
-    return this.chosen().reduce((a, s) => a + Number(s.price), 0) + (this.form()?.channel === 'home' ? Number(this.form()?.transport_fee ?? 0) : 0);
+    return this.chosen().reduce((a, s) => a + Number(s.price), 0) + (this.form()?.channel === 'home' ? Number(this.form()?.transport_fee ?? 0) : 0) + this.hairTotal(this.form());
   }
   newBooking(channel: Channel) {
     const d = this.tab() === 'day' ? this.day() : new Date();
-    this.form.set({ channel, source: channel === 'walkin' ? 'In person' : 'WhatsApp', date: ymd(d), time: '', duration_min: 120, address: '', stylists_needed: 1, transport_fee: 0, notes: '' });
+    this.form.set({ channel, source: channel === 'walkin' ? 'In person' : 'WhatsApp', date: ymd(d), time: '', duration_min: 120, address: '', stylists_needed: 1, transport_fee: 0, notes: '', hair_source: null, hair: [] });
+    this.hairPick = null;
+    this.hairQty = 1;
     this.chosen.set([]);
     this.staffSel = [];
     this.busy.set([]);
@@ -417,7 +473,10 @@ export class BookingsPage implements ViewWillEnter {
       time: `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`,
       duration_min: b.duration_min ?? 60, address: b.address ?? '', stylists_needed: b.stylists_needed,
       transport_fee: Number(b.transport_fee), notes: b.notes ?? '',
+      hair_source: b.hair_source ?? null, hair: (b.hair_items ?? []).map((h) => ({ ...h })),
     });
+    this.hairPick = null;
+    this.hairQty = 1;
     this.chosen.set((b.booking_services ?? []).map((s) => ({ service_id: s.service_id, variant_id: s.variant_id, name: s.name, price: Number(s.price) })));
     this.staffSel = this.staffIds(b);
     this.who = { client: b.client_id ? ({ id: b.client_id, name: b.clients?.name, phone: b.clients?.phone } as Client) : null, guestName: b.guest_name ?? '' };
@@ -459,6 +518,7 @@ export class BookingsPage implements ViewWillEnter {
       if (clash.length) return this.ui.toast('A chosen stylist is already booked at that time', 'danger');
     }
     if (f.channel === 'home' && !f.address.trim()) return this.ui.toast('Enter the client location for the home service', 'danger');
+    if (f.channel === 'home' && !f.hair_source) return this.ui.toast('Choose who brings the hair: the salon or the client', 'danger');
     const dep = this.deposit;
     if (!f.id && f.channel !== 'walkin' && dep.amount) {
       const err = paymentError(dep);
@@ -476,6 +536,8 @@ export class BookingsPage implements ViewWillEnter {
           duration_min: Number(f.duration_min) || null, address: f.channel === 'home' ? f.address : null,
           stylists_needed: Number(f.stylists_needed) || 1, transport_fee: f.channel === 'home' ? Number(f.transport_fee) || 0 : 0,
           notes: f.notes || null, ...(status ? { status } : {}),
+          hair_source: f.channel === 'home' ? f.hair_source : null,
+          hair_items: f.channel === 'home' && f.hair_source === 'salon' ? f.hair : [],
         },
         services, this.staffSel,
       );

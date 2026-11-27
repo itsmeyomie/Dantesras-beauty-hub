@@ -17,6 +17,7 @@ export const AREAS: { key: string; title: string; sub: string }[] = [
   { key: 'sales', title: 'Sales', sub: 'Sales history, void a sale' },
   { key: 'clients', title: 'Clients', sub: 'Client list and history' },
   { key: 'debts', title: 'Debts', sub: 'Who owes and collecting' },
+  { key: 'outside', title: 'Bought outside', sub: 'Things bought from other shops, paying the shops' },
   { key: 'services', title: 'Service menu', sub: 'Prices and commission per service' },
   { key: 'products', title: 'Products', sub: 'Stock and product prices' },
   { key: 'team', title: 'Team', sub: 'Staff, commission and payouts' },

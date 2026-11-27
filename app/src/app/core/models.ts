@@ -43,6 +43,15 @@ export interface Product {
   stock_qty: number; low_stock: number; commission_pct: number; status: 'active' | 'pending' | 'inactive';
 }
 export interface BookingService { id?: string; service_id: string | null; variant_id: string | null; name: string; price: number; }
+/** Hair the salon carries to a home service (a product from stock). */
+export interface HairItem { product_id: string; name: string; qty: number; price: number; }
+/** Something bought from an outside shop (e.g. braids we don't have); the shop is paid later (in the evening). */
+export interface OutsideBuy {
+  id: string; bought_at: string; shop: string; item: string; qty: number; cost: number;
+  booking_id: string | null; on_bill: boolean; bill_price: number | null; sale_id: string | null; notes: string | null;
+  recorded_by: string | null; paid_at: string | null; paid_method: 'cash' | 'mpesa' | null; paid_ref: string | null; paid_by: string | null;
+  bookings?: { guest_name: string | null; status: string; clients: { name: string } | null } | null;
+}
 export interface Booking {
   id: string; client_id: string | null; guest_name: string | null; channel: Channel; source: string | null;
   status: BookingStatus; scheduled_at: string | null; duration_min: number | null; address: string | null;
@@ -51,7 +60,9 @@ export interface Booking {
   online?: boolean; response_note?: string | null;
   /** client served before the booked day: why, and the day they had booked */
   early_reason?: string | null; original_scheduled_at?: string | null;
-  clients?: { name: string; phone: string | null } | null;
+  /** home service: the salon brings the hair (hair_items go on her bill) or the client has it */
+  hair_source?: 'salon' | 'client' | null; hair_items?: HairItem[];
+  clients?:{ name: string; phone: string | null } | null;
   booking_services?: BookingService[];
   booking_staff?: { staff_id: string; part?: 'main' | 'finisher'; staff?: { name: string } }[];
   payments?: { amount: number; kind: string }[];

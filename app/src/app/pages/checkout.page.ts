@@ -17,7 +17,7 @@ import { KshPipe, Ui, ageFrom } from '../core/ui';
 import { PayChoice, PayDefaults, feeSplit } from '../core/pay-split';
 import { StaffAuthService } from '../core/staff-auth.service';
 
-interface Line { kind: 'service' | 'product'; service_id: string | null; variant_id: string | null; product_id: string | null; name: string; qty: number; unit_price: number; }
+interface Line { kind: 'service' | 'product'; service_id: string | null; variant_id: string | null; product_id: string | null; name: string; qty: number; unit_price: number; outside_id?: string; }
 interface Share { staff_id: string; share_pct: number; }
 
 @Component({
@@ -126,7 +126,7 @@ interface Share { staff_id: string; share_pct: number; }
                 <h3>Bill</h3>
                 <table class="t"><tbody>
                   @for (l of lines(); track $index) {
-                    <tr><td>{{ l.name }} @if (l.qty > 1) { × {{ l.qty }} }</td><td class="num">{{ l.unit_price * l.qty | ksh }}</td>
+                    <tr><td>{{ l.name }} @if (l.qty > 1) { × {{ l.qty }} } @if (l.outside_id) { <span class="muted small" data-testid="outside-line">· bought outside</span> }</td><td class="num">{{ l.unit_price * l.qty | ksh }}</td>
                       <td class="num" style="width:40px"><ion-button fill="clear" size="small" color="medium" (click)="removeLine($index)" aria-label="Remove"><ion-icon slot="icon-only" name="trash-outline"></ion-icon></ion-button></td></tr>
                   } @empty { <tr><td class="muted">Nothing added yet.</td></tr> }
                 </tbody></table>
@@ -148,7 +148,7 @@ interface Share { staff_id: string; share_pct: number; }
                   <tr><td>Subtotal</td><td class="num">{{ subtotal() | ksh }}</td></tr>
                   @if (discount > 0) { <tr><td>Discount</td><td class="num">− {{ discount | ksh }}</td></tr> }
                   @if (channel === 'home' && transport > 0) { <tr><td>Transport</td><td class="num">{{ transport | ksh }}</td></tr> }
-                  <tr><td><strong>Total</strong></td><td class="num"><strong>{{ total() | ksh }}</strong></td></tr>
+                  <tr><td><strong>Total</strong></td><td class="num"><strong data-testid="co-total">{{ total() | ksh }}</strong></td></tr>
                   @if (deposits() > 0) { <tr><td>Already paid (booking)</td><td class="num">− {{ deposits() | ksh }}</td></tr> }
                   <tr><td><strong>To pay now</strong></td><td class="num"><strong class="maroon">{{ due() | ksh }}</strong></td></tr>
                 </table>
@@ -228,6 +228,13 @@ export class CheckoutPage implements ViewWillEnter {
           ? { client: (await this.data.getClient(b.client_id)), guestName: '' }
           : { client: null, guestName: b.guest_name ?? '' };
         this.lines.set((b.booking_services ?? []).map((s) => ({ kind: 'service', service_id: s.service_id, variant_id: s.variant_id, product_id: null, name: s.name, qty: 1, unit_price: Number(s.price) })));
+        // home service: hair the salon brought (from stock)
+        if (b.hair_source === 'salon') {
+          this.lines.update((l) => [...l, ...(b.hair_items ?? []).map((h) => ({ kind: 'product' as const, service_id: null, variant_id: null, product_id: h.product_id, name: h.name, qty: Number(h.qty), unit_price: Number(h.price) }))]);
+        }
+        // bought from an outside shop for this client, to go on her bill
+        const outside = await this.data.bookingOutsideLines(b.id).catch(() => []);
+        this.lines.update((l) => [...l, ...outside.map((o) => ({ kind: 'product' as const, service_id: null, variant_id: null, product_id: null, name: o.item, qty: 1, unit_price: Number(o.bill_price), outside_id: o.id }))]);
         const st = b.booking_staff ?? [];
         this.setCrew(st.filter((s) => s.part !== 'finisher').map((s) => s.staff_id), st.filter((s) => s.part === 'finisher').map((s) => s.staff_id));
       } else if (cid) {

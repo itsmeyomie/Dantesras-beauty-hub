@@ -25,6 +25,7 @@ export const ACCESS: Record<string, StaffRole[]> = {
   sales: ['owner', 'manager', 'receptionist'],
   clients: ['owner', 'manager', 'receptionist'],
   debts: ['owner', 'manager', 'receptionist'],
+  outside: ['owner', 'manager'],
   services: ['owner', 'manager'],
   products: ['owner', 'manager'],
   team: ['owner', 'manager'],

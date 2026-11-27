@@ -14,7 +14,12 @@ import { checkIn } from '../core/checkin';
 import { acceptRequest, declineRequest } from '../core/answer-request';
 
 export const isMine = (b: Booking, id?: string) => !!id && (b.booking_staff ?? []).some((s) => s.staff_id === id);
-export const bookingValue = (b: Booking) => (b.booking_services ?? []).reduce((a, s) => a + Number(s.price), 0) + Number(b.transport_fee ?? 0);
+export const hairValue = (b: Booking) => b.hair_source === 'salon' ? (b.hair_items ?? []).reduce((a, h) => a + Number(h.price) * Number(h.qty), 0) : 0;
+export const bookingValue = (b: Booking) => (b.booking_services ?? []).reduce((a, s) => a + Number(s.price), 0) + Number(b.transport_fee ?? 0) + hairValue(b);
+/** home service: what the stylist carries */
+export const hairNote = (b: Booking) => b.channel !== 'home' || !b.hair_source ? ''
+  : b.hair_source === 'client' ? 'Client has hair'
+  : 'Salon brings hair' + ((b.hair_items ?? []).length ? ': ' + (b.hair_items ?? []).map((h) => `${h.name} ×${h.qty}`).join(', ') : '');
 export const bookingPaid = (b: Booking) => (b.payments ?? []).filter((p) => p.kind === 'deposit').reduce((a, p) => a + Number(p.amount), 0);
 export const serviceNames = (b: Booking) => (b.booking_services ?? []).map((s) => s.name).join(', ') || 'Service not chosen yet';
 /** A main stylist can hand their own open job to someone else, or add a finisher. */
@@ -74,6 +79,7 @@ export const STATUS: Record<string, { label: string; tone: string }> = {
               <span class="t">{{ b.scheduled_at | date: 'HH:mm' }}</span>
               <div class="p-spacer"><b>{{ b.clients?.name ?? b.guest_name }}</b>
                 <div class="p-muted p-small">{{ names(b) }}{{ b.channel === 'home' ? ' · home · ' + b.address : '' }}</div>
+                @if (hair(b)) { <div class="p-small" style="font-weight:600" data-testid="hair-note">{{ hair(b) }}</div> }
                 @if (finishing(b)) { <div class="p-small maroon" data-testid="finish-for">Finish for {{ mainOf(b) }}</div> }
                 @else if (canHandOver(b)) { <button class="p-link p-small" style="padding:2px 0" (click)="assigning.set(b)" data-testid="job-handover">Hand over / add finisher</button> }</div>
               @if (finishing(b)) { <span class="p-badge info">{{ b.status === 'in_progress' ? 'Finish now' : 'Finisher' }}</span> }
@@ -138,6 +144,7 @@ export class MyDayPage implements ViewWillEnter, ViewWillLeave {
 
   names = serviceNames;
   value = bookingValue;
+  hair = hairNote;
   paid = bookingPaid;
   status(b: Booking) {
     return STATUS[b.status] ?? { label: b.status, tone: 'info' };

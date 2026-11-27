@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import {
-  Booking, BookingService, BookingStatus, Category, Client, Course, Debt, PaymentInput, Product, Report,
+  Booking, BookingService, BookingStatus, Category, Client, Course, Debt, OutsideBuy, PaymentInput, Product, Report,
   Service, Staff, StaffBalance, StaffRoleDef, Student, Variant,
 } from './models';
 
@@ -339,9 +339,17 @@ export class DataService {
         services.map((s) => ({ booking_id: saved.id, service_id: s.service_id, variant_id: s.variant_id, name: s.name, price: s.price })),
       ));
     }
-    await this.run(this.db.from('booking_staff').delete().eq('booking_id', saved.id).eq('part', 'main'));
-    if (staffIds.length) {
-      await this.run(this.db.from('booking_staff').insert(staffIds.map((id) => ({ booking_id: saved.id, staff_id: id }))));
+    // only people taken off are removed and only new people added, so a stylist is told once (not on every edit)
+    const had = (await this.run<{ staff_id: string }[]>(
+      this.db.from('booking_staff').select('staff_id').eq('booking_id', saved.id).eq('part', 'main'),
+    )).map((r) => r.staff_id);
+    const gone = had.filter((id) => !staffIds.includes(id));
+    if (gone.length) await this.run(this.db.from('booking_staff').delete().eq('booking_id', saved.id).in('staff_id', gone));
+    const added = staffIds.filter((id) => !had.includes(id));
+    if (added.length) {
+      await this.run(this.db.from('booking_staff').upsert(
+        added.map((id) => ({ booking_id: saved.id, staff_id: id, part: 'main' })), { onConflict: 'booking_id,staff_id' },
+      ));
     }
     return saved.id;
   }
@@ -394,6 +402,36 @@ export class DataService {
   voidSale(id: string, reason: string) {
     return this.run(this.db.rpc('void_sale', { p_sale_id: id, p_reason: reason }));
   }
+  // ---------- bought from outside shops ----------
+  outsideBuys(since: string) {
+    return this.run<OutsideBuy[]>(this.db.from('outside_buys')
+      .select('*, bookings(guest_name, status, clients(name))')
+      .or(`paid_at.is.null,bought_at.gte.${since}`).order('bought_at', { ascending: false }));
+  }
+  /** Bookings still open (an outside buy can be for one of these clients). */
+  openBookings() {
+    const from = new Date(Date.now() - 86400000).toISOString();
+    return this.run<Booking[]>(this.db.from('bookings').select('id, guest_name, scheduled_at, channel, status, clients(name, phone)')
+      .in('status', ['pending', 'booked', 'waiting', 'in_progress'])
+      .or(`scheduled_at.is.null,scheduled_at.gte.${from},status.in.(waiting,in_progress)`)
+      .order('scheduled_at', { nullsFirst: true }).limit(200));
+  }
+  async saveOutsideBuy(o: Partial<OutsideBuy>) {
+    const { bookings: _b, ...row } = o;
+    await this.run(o.id ? this.db.from('outside_buys').update(row).eq('id', o.id) : this.db.from('outside_buys').insert(row));
+  }
+  deleteOutsideBuy(id: string) {
+    return this.run(this.db.from('outside_buys').delete().eq('id', id));
+  }
+  /** Mark shops paid (in the evening). */
+  payOutside(ids: string[], method: 'cash' | 'mpesa', ref: string | null) {
+    return this.run(this.db.from('outside_buys').update({ paid_at: new Date().toISOString(), paid_method: method, paid_ref: ref }).in('id', ids));
+  }
+  /** Outside items that go on this booking's bill (not billed yet). */
+  bookingOutsideLines(bookingId: string) {
+    return this.rpc<{ id: string; item: string; shop: string; qty: number; bill_price: number }[]>('booking_outside_lines', { p_booking: bookingId });
+  }
+
   debts() {
     return this.run<Debt[]>(this.db.from('v_debts').select('*').order('sold_at'));
   }

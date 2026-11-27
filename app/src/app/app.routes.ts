@@ -59,6 +59,7 @@ export const routes: Routes = [
   s('clients', 'clients', () => import('./pages/clients.page').then((m) => m.ClientsPage)),
   s('clients/:id', 'clients', () => import('./pages/client-detail.page').then((m) => m.ClientDetailPage)),
   s('debts', 'debts', () => import('./pages/debts.page').then((m) => m.DebtsPage)),
+  s('outside', 'outside', () => import('./pages/outside.page').then((m) => m.OutsidePage)),
   s('services', 'services', () => import('./pages/services.page').then((m) => m.ServicesPage)),
   s('products', 'products', () => import('./pages/products.page').then((m) => m.ProductsPage)),
   s('staff-list', 'team', () => import('./pages/staff.page').then((m) => m.StaffPage)),
