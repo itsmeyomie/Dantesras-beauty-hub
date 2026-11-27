@@ -13,8 +13,13 @@ const signedIn: CanActivateFn = (_route, state) => {
 const staff: CanActivateFn = async (route, state) => {
   const auth = inject(StaffAuthService);
   const router = inject(Router);
-  if (!(await auth.ensureMe())) return router.createUrlTree(['/staff/sign-in'], { queryParams: { returnUrl: state.url } });
+  if (!(await auth.ensureMe())) {
+    // paused by the developer: still signed in – stay on this page (the paused screen covers it)
+    if (auth.token() && auth.pausedOut) return true;
+    return router.createUrlTree(['/staff/sign-in'], { queryParams: { returnUrl: state.url } });
+  }
   const area = route.data['area'] as string | undefined;
+  if (area === 'dev') await auth.checkDev();
   return !area || auth.can(area) ? true : router.parseUrl(auth.home());
 };
 
@@ -43,6 +48,7 @@ export const routes: Routes = [
   s('my-calendar', 'my-day', () => import('./staff/my-calendar.page').then((m) => m.MyCalendarPage)),
   s('my-earnings', 'my-day', () => import('./staff/my-earnings.page').then((m) => m.MyEarningsPage)),
   s('roles', 'roles', () => import('./staff/roles.page').then((m) => m.RolesPage)),
+  s('dev', 'dev', () => import('./staff/dev.page').then((m) => m.DevPage)),
   s('staff-requests', 'staff-requests', () => import('./staff/staff-requests.page').then((m) => m.StaffRequestsPage)),
   s('dashboard', 'dashboard', () => import('./staff/home.page').then((m) => m.StaffHomePage)),
   s('dashboard-classic', 'dashboard', () => import('./pages/dashboard.page').then((m) => m.DashboardPage)),

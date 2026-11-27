@@ -8,6 +8,7 @@ import { StaffAuthService } from './core/staff-auth.service';
 import { Ui } from './core/ui';
 import { MODULES } from './staff/more.page';
 import { APP_AUTH_CALLBACK, GOOGLE_FOR_KEY } from './portal/portal.service';
+import { AppControlService } from './core/app-control.service';
 
 interface Tab { label: string; url: string; icon: string; query?: Record<string, string>; area?: string; }
 
@@ -47,7 +48,7 @@ const ANY_TABS: Tab[] = [
 ];
 const AREA_OF: Record<string, string> = {
   '/dashboard': 'dashboard', '/desk': 'desk', '/my-day': 'my-day', '/my-calendar': 'my-day', '/my-earnings': 'my-day', '/bookings': 'bookings',
-  '/checkout': 'checkout', '/clients': 'clients', '/staff-list': 'team', '/sales': 'sales', '/school': 'school', '/reports': 'reports', '/more': 'more', '/me': 'me',
+  '/checkout': 'checkout', '/clients': 'clients', '/staff-list': 'team', '/sales': 'sales', '/school': 'school', '/reports': 'reports', '/more': 'more', '/me': 'me', '/dev': 'dev',
 };
 
 @Component({
@@ -83,6 +84,23 @@ const AREA_OF: Record<string, string> = {
         </ion-menu>
         <ion-router-outlet id="main"></ion-router-outlet>
       </ion-split-pane>
+      @if (blocker(); as b) {
+        <div class="blocker portal" data-testid="service-blocker" [attr.data-kind]="b.kind">
+          <div class="bk-in">
+            <div class="brand">DANTESRAS</div>
+            <h1 class="p-display" style="font-size:1.8rem;margin:18px 0 8px"><strong>{{ b.title }}</strong></h1>
+            <p class="bk-msg" data-testid="service-blocker-msg">{{ b.message }}</p>
+            @if (b.kind === 'update') { <a class="p-btn" [href]="apkUrl" data-testid="service-update">Download the new app</a> }
+            <a class="bk-dev" routerLink="/staff/sign-in" [queryParams]="{ returnUrl: '/dev' }">Developer sign-in</a>
+          </div>
+        </div>
+      }
+      @if (bannerText(); as t) {
+        <div class="app-banner" data-testid="app-banner"><span>{{ t }}</span><button (click)="ctl.bannerHidden.set(true)" aria-label="Hide">×</button></div>
+      }
+      @if (auth.isDev() && ctl.status()?.paused) {
+        <a class="dev-strip" routerLink="/dev" data-testid="dev-paused-strip">Service is PAUSED for everyone · open Developer panel</a>
+      }
       @if (kind() === 'staff' && auth.me() && !wide()) {
         <div class="p-tabs staff-tabs portal" data-testid="staff-tabs">
           <nav aria-label="Staff">
@@ -110,6 +128,15 @@ const AREA_OF: Record<string, string> = {
     .it.on { background: #161214; color: #f1d27a; }
     .it.on ion-icon { color: #f1d27a; }
     .it.out { margin-top: 12px; color: #8a7f78; }
+    .blocker { position: fixed; inset: 0; z-index: 30000; background: #f8f4ef; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+    .bk-in { max-width: 420px; }
+    .bk-msg { font-size: 1rem; color: #3b3134; line-height: 1.5; margin: 0 0 22px; white-space: pre-line; }
+    .bk-dev { display: block; margin-top: 28px; font-size: .75rem; color: #b8aea6; text-decoration: none; }
+    .app-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 20000; display: flex; gap: 10px; align-items: center; justify-content: center;
+      padding: calc(env(safe-area-inset-top) + 6px) 12px 6px; background: #161214; color: #f1d27a; font: 500 .82rem 'Inter', sans-serif; }
+    .app-banner button { background: none; border: 0; color: #f1d27a; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+    .dev-strip { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20001; background: #9b1c1c; color: #fff; text-align: center;
+      padding: 6px 10px calc(env(safe-area-inset-bottom) + 6px); font: 600 .78rem 'Inter', sans-serif; text-decoration: none; }
   `,
 })
 export class AppComponent implements OnInit {
@@ -135,6 +162,21 @@ export class AppComponent implements OnInit {
     const last = TABS[this.auth.role() ?? '']?.at(-1);
     return [...base, last?.url === '/me' ? last : { label: 'More', url: '/more', icon: 'apps-outline' }];
   });
+  readonly ctl = inject(AppControlService);
+  readonly apkUrl = 'https://itsmeyomie.github.io/Dantesras-beauty-hub/download/Dantesras.apk';
+  /** Full-screen notice from the developer: paused, maintenance or "update the app". The developer is never blocked. */
+  readonly blocker = computed(() => {
+    const s = this.ctl.status();
+    if (!s || this.auth.isDev()) return null;
+    const u = this.url();
+    // only someone not signed in (e.g. the developer signing in) may use the sign-in page while paused
+    const exempt = u.startsWith('/dev') || (u.startsWith('/staff/sign-in') && !this.auth.token());
+    if (s.paused && !exempt) return { kind: 'paused', title: 'Service paused', message: s.pause_message };
+    if (s.maintenance && !exempt) return { kind: 'maintenance', title: 'Back soon', message: s.maintenance_message };
+    if (this.ctl.updateNeeded()) return { kind: 'update', title: 'Update the app', message: 'A new version of the Dantesras app is ready. Download it to keep using the app.' };
+    return null;
+  });
+  readonly bannerText = computed(() => (this.ctl.bannerHidden() || this.blocker() ? null : this.ctl.status()?.banner || null));
   readonly groups = computed(() => {
     this.auth.me();
     const visible = MODULES.filter((m) => m.area !== 'me' && this.auth.can(m.area));
@@ -144,6 +186,7 @@ export class AppComponent implements OnInit {
   constructor() {
     addIcons({ barChartOutline, schoolOutline, speedometerOutline, calendarOutline, cashOutline, peopleOutline, appsOutline, storefrontOutline, sunnyOutline, walletOutline, personOutline, sparklesOutline, logOutOutline });
     window.addEventListener('resize', () => this.wide.set(window.innerWidth >= 992));
+    this.ctl.start(); // before the first page opens
   }
 
   async ngOnInit() {

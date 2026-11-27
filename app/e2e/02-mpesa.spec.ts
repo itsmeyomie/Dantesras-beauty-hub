@@ -109,7 +109,12 @@ test('record payment (cash) still works next to the prompt', async ({ page }) =>
 
 test('debt paid by M-Pesa prompt reduces the balance', async ({ page }) => {
   await page.goto('/debts');
-  const row = view(page).locator('table.t tr').filter({ has: page.locator('ion-button', { hasText: 'Pay' }) }).first();
+  const rows = view(page).locator('table.t tr').filter({ has: page.locator('ion-button', { hasText: 'Pay' }) });
+  await expect(rows.first()).toBeVisible();
+  // a debtor who still owes at least KSh 200 (earlier runs pay the small debts off; a paid-off row leaves the list)
+  let i = 0;
+  while (money(await rows.nth(i).locator('td.num').first().textContent()) < 200) i++;
+  const row = rows.nth(i);
   const name = (await row.locator('strong').first().textContent())!.trim();
   const before = money(await row.locator('td.num').first().textContent());
   await row.locator('ion-button').filter({ hasText: 'Pay' }).click();

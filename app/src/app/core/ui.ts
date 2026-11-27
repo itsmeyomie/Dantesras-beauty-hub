@@ -51,7 +51,9 @@ export class Ui {
     await t.present();
   }
   error(e: unknown) {
-    return this.toast((e instanceof Error ? e.message : String(e)).replace(/^STAFF_SESSION:\s*/, ''), 'danger');
+    const msg = e instanceof Error ? e.message : String(e);
+    window.dispatchEvent(new CustomEvent('dbh-error', { detail: msg })); // technical ones reach the developer panel
+    return this.toast(msg.replace(/^STAFF_SESSION:\s*/, '').replace(/^SERVICE_PAUSED:\s*/, ''), 'danger');
   }
   async confirm(header: string, message: string, ok = 'Yes'): Promise<boolean> {
     const a = await this.alertCtrl.create({ header, message, buttons: [{ text: 'Cancel', role: 'cancel' }, { text: ok, role: 'ok' }] });

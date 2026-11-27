@@ -45,7 +45,10 @@ export class DataService {
   private async run<T = unknown>(q: PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<T> {
     if (!this.configured) throw new Error('Supabase is not configured yet (see src/environments/environment.ts).');
     const { data, error } = await q;
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.message.includes('SERVICE_PAUSED')) window.dispatchEvent(new CustomEvent('dbh-paused', { detail: error.message }));
+      throw new Error(error.message);
+    }
     return data as T;
   }
 

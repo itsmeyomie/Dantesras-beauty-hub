@@ -64,6 +64,7 @@ export class StaffAuthService {
   can(area: string): boolean {
     const me = this.me();
     if (!me) return false;
+    if (area === 'dev') return this.isDev();
     if (me.roles.includes('owner') || ALWAYS.includes(area)) return true;
     if (OWNER_ONLY.includes(area)) return false;
     if (me.areas) return me.areas.includes(area);
@@ -94,6 +95,7 @@ export class StaffAuthService {
   private clear() {
     this.token.set(null);
     this.me.set(null);
+    this.isDev.set(false);
     write(null);
   }
 
@@ -129,6 +131,7 @@ export class StaffAuthService {
       write(r.token);
       void this.notify.register('staff', r.token);
       void this.data.loadReference().catch(() => undefined); // the app opened signed out: load the team now
+      void this.checkDev();
     }
     return r.status;
   }
@@ -164,12 +167,16 @@ export class StaffAuthService {
   async ensureMe(): Promise<boolean> {
     if (!this.token()) return false;
     if (this.me()?.account_status === 'approved') return true;
+    this.pausedOut = false;
     try {
       this.me.set(await this.authed<StaffMe>('staff_me'));
       void this.notify.register('staff', this.token()!);
+      void this.checkDev();
       return true;
-    } catch {
-      this.clear();
+    } catch (e) {
+      // paused by the developer: stay signed in, so Resume brings everyone straight back
+      this.pausedOut = String(e instanceof Error ? e.message : e).includes('SERVICE_PAUSED');
+      if (!this.pausedOut) this.clear();
       return false;
     }
   }
@@ -181,6 +188,22 @@ export class StaffAuthService {
     const t = this.token();
     this.clear();
     if (t) await this.call('staff_logout', { p_token: t }).catch(() => undefined);
+  }
+
+  /** The last sign-in check was refused because the developer paused the service (still signed in). */
+  pausedOut = false;
+
+  // ---------- developer (/dev) ----------
+  /** The signed-in person is a developer (checked by the database, never by the app). */
+  readonly isDev = signal(false);
+  async checkDev(): Promise<boolean> {
+    const t = this.token();
+    const yes = !!t && (await this.call<boolean>('dev_check', { p_token: t }).catch(() => false));
+    this.isDev.set(yes);
+    return yes;
+  }
+  dev<T>(fn: string, args: Record<string, unknown> = {}) {
+    return this.authed<T>(fn, args);
   }
 
   // ---------- owner ----------

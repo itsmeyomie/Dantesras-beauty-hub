@@ -4,7 +4,7 @@ import { Ui } from '../core/ui';
 import { IonContent, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
-  barChartOutline, calendarOutline, cashOutline, checkmarkDoneOutline, cutOutline, peopleOutline, personCircleOutline,
+  barChartOutline, calendarOutline, cashOutline, checkmarkDoneOutline, constructOutline, cutOutline, peopleOutline, personCircleOutline,
   phonePortraitOutline, pricetagsOutline, receiptOutline, schoolOutline, settingsOutline, speedometerOutline, sunnyOutline,
   walletOutline, mailOutline, storefrontOutline, keyOutline, logOutOutline,
 } from 'ionicons/icons';
@@ -16,7 +16,7 @@ export interface Module { title: string; sub: string; url: string; icon: string;
 /** Every staff section in one place – each role only sees what it may open. */
 // icons used by the menu, sidebar and tiles
 addIcons({
-  speedometerOutline, storefrontOutline, sunnyOutline, calendarOutline, mailOutline, cashOutline, receiptOutline, peopleOutline,
+  constructOutline, speedometerOutline, storefrontOutline, sunnyOutline, calendarOutline, mailOutline, cashOutline, receiptOutline, peopleOutline,
   walletOutline, cutOutline, pricetagsOutline, personCircleOutline, schoolOutline, checkmarkDoneOutline, barChartOutline,
   settingsOutline, phonePortraitOutline, keyOutline, logOutOutline,
 });
@@ -39,6 +39,7 @@ export const MODULES: Module[] = [
   { title: 'Roles', sub: '& screens', url: '/roles', icon: 'key-outline', area: 'roles', group: 'School & owner' },
   { title: 'Reports', sub: 'all', url: '/reports', icon: 'bar-chart-outline', area: 'reports', group: 'School & owner' },
   { title: 'Settings', sub: 'rules, hours', url: '/settings', icon: 'settings-outline', area: 'settings', group: 'School & owner' },
+  { title: 'Developer', sub: 'panel', url: '/dev', icon: 'construct-outline', area: 'dev', group: 'School & owner' },
   { title: 'Client app', sub: 'preview', url: '/portal', icon: 'phone-portrait-outline', area: 'me', group: 'School & owner' },
   { title: 'My profile', sub: 'photo, password', url: '/me', icon: 'person-circle-outline', area: 'me', group: 'Me' },
 ];

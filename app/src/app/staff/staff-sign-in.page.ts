@@ -204,6 +204,8 @@ export class StaffSignInPage implements OnInit, OnDestroy {
   });
   async google() {
     this.error.set('');
+    // remember where to go after Google (e.g. /dev); the round trip loses the address
+    try { const r = this.returnUrl(); if (r) sessionStorage.setItem('dbh.staff.return', r); } catch { /* private mode */ }
     if (environment.simulateSignIn) return this.mode.set('google-test');
     this.busy.set(true);
     try {
@@ -241,7 +243,9 @@ export class StaffSignInPage implements OnInit, OnDestroy {
       return;
     }
     this.ui.toast(`Welcome, ${this.auth.firstName()}`);
-    void this.router.navigateByUrl(this.auth.home(), { replaceUrl: true });
+    let back = this.returnUrl();
+    try { back ||= sessionStorage.getItem('dbh.staff.return') ?? undefined; sessionStorage.removeItem('dbh.staff.return'); } catch { /* private mode */ }
+    void this.router.navigateByUrl(back && !back.startsWith('/staff') ? back : this.auth.home(), { replaceUrl: true });
   }
   async sendReset() {
     this.error.set('');
