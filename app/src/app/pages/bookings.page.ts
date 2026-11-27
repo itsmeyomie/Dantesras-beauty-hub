@@ -61,7 +61,7 @@ interface BookingForm {
                 <span class="spacer"></span>
                 <span class="muted small">{{ b.created_at | date: 'd MMM HH:mm' }}</span>
               </div>
-              <div style="margin-top:6px"><strong>{{ b.clients?.name ?? b.guest_name }}</strong> <span class="muted">{{ b.clients?.phone }}</span></div>
+              <div style="margin-top:6px"><strong>{{ b.clients?.name ?? b.guest_name }}</strong> <span class="muted">{{ data.phoneOf(b.client_id) }}</span></div>
               <div class="small">{{ serviceNames(b) }} · <strong>{{ value(b) | ksh }}</strong></div>
               <div class="small muted">{{ staffNames(b) ? 'Asked for ' + staffNames(b) : 'Any stylist' }}
                 @if (b.channel === 'home') { · {{ b.address }} }</div>
@@ -104,7 +104,7 @@ interface BookingForm {
                 <span class="spacer"></span>
                 <span class="muted small">{{ b.source }}</span>
               </div>
-              <div style="margin-top:6px"><strong>{{ b.clients?.name ?? b.guest_name }}</strong> <span class="muted">{{ b.clients?.phone }}</span></div>
+              <div style="margin-top:6px"><strong>{{ b.clients?.name ?? b.guest_name }}</strong> <span class="muted">{{ data.phoneOf(b.client_id) }}</span></div>
               <div class="small">{{ serviceNames(b) }} · <strong>{{ value(b) | ksh }}</strong></div>
               <div class="small muted">With {{ staffNames(b) || 'no stylist yet' }} · {{ b.duration_min ?? 60 }} min
                 @if (b.channel === 'home') { · {{ b.address }} · transport {{ b.transport_fee | ksh }} }</div>
@@ -258,7 +258,7 @@ interface BookingForm {
             <h3>Payment for booking</h3>
             <p class="muted small">Payments are kept if the client doesn't show up.</p>
             @if (depositFor(); as b) {
-              <app-pay-dialog [pay]="payDeposit" [due]="value(b) - deposits(b)" [stk]="{ purpose: 'deposit', booking_id: b.id, phone: b.clients?.phone }" (done)="depositFor.set(null); load()" (cancelled)="depositFor.set(null)" />
+              <app-pay-dialog [pay]="payDeposit" [due]="value(b) - deposits(b)" [stk]="{ purpose: 'deposit', booking_id: b.id, phone: data.phoneOf(b.client_id), saved: !!b.client_id }" (done)="depositFor.set(null); load()" (cancelled)="depositFor.set(null)" />
             }
           </ion-content>
         </ng-template>
@@ -348,6 +348,7 @@ export class BookingsPage implements ViewWillEnter {
       this.bookings.set(b);
       this.queue.set(q);
       this.requests.set(r);
+      void this.data.loadContacts([...b, ...q, ...r].map((x) => x.client_id));
       if (this.countsMonth) void this.loadCounts(this.countsMonth);
     } catch (e) {
       this.ui.error(e);
@@ -479,7 +480,7 @@ export class BookingsPage implements ViewWillEnter {
     this.hairQty = 1;
     this.chosen.set((b.booking_services ?? []).map((s) => ({ service_id: s.service_id, variant_id: s.variant_id, name: s.name, price: Number(s.price) })));
     this.staffSel = this.staffIds(b);
-    this.who = { client: b.client_id ? ({ id: b.client_id, name: b.clients?.name, phone: b.clients?.phone } as Client) : null, guestName: b.guest_name ?? '' };
+    this.who = { client: b.client_id ? ({ id: b.client_id, name: b.clients?.name, } as Client) : null, guestName: b.guest_name ?? '' };
     this.checkBusy();
   }
   addService(s: PickedService) {

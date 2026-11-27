@@ -7,7 +7,7 @@ export type StkState = 'pending' | 'success' | 'failed' | 'cancelled' | 'timeout
 
 export interface StkRequest {
   purpose: StkPurpose;
-  phone: string;
+  phone: string | null;
   amount: number;
   booking_id?: string;
   sale_id?: string;

@@ -215,21 +215,43 @@ export class DataService {
   }
 
   // ---------- clients ----------
-  searchClients(term: string, limit = 50) {
-    let q = this.db.from('clients').select('*').order('name').limit(limit);
-    const t = term.trim();
-    if (t) q = q.or(`name.ilike.%${t.replace(/[%,()]/g, '')}%,phone.ilike.%${t.replace(/[%,()]/g, '')}%`);
-    return this.run<Client[]>(q);
+  // Client phone, WhatsApp and email: only the owner gets them (the database leaves them out for everyone else).
+  /** Signed in as an owner (set by StaffAuthService). */
+  readonly owner = signal(false);
+  /** Numbers of the clients on screen – owner only. */
+  readonly contacts = signal<Record<string, { phone: string | null; whatsapp: string | null; email: string | null }>>({});
+  async loadContacts(ids: (string | null | undefined)[]) {
+    const want = [...new Set(ids.filter((x): x is string => !!x))].filter((id) => !(id in this.contacts()));
+    if (!this.owner() || !want.length) return;
+    try {
+      const got = await this.rpc<Record<string, { phone: string | null; whatsapp: string | null; email: string | null }>>('client_contacts', { p_ids: want });
+      this.contacts.update((m) => ({ ...m, ...got }));
+    } catch { /* numbers are a nice-to-have on these screens */ }
   }
-  getClient(id: string) {
-    return this.run<Client>(this.db.from('clients').select('*').eq('id', id).single());
+  phoneOf(clientId: string | null | undefined): string | null {
+    return clientId ? this.contacts()[clientId]?.phone ?? null : null;
+  }
+  searchClients(term: string, limit = 50) {
+    return this.rpc<Client[]>('search_clients', { p_term: term.trim(), p_limit: limit });
+  }
+  async getClient(id: string) {
+    const c = await this.rpc<Client | null>('get_client', { p_id: id });
+    if (!c) throw new Error('Client not found');
+    return c;
   }
   async saveClient(c: Partial<Client>): Promise<Client> {
-    const row = { ...c, phone: c.phone?.trim() || null };
-    return this.run<Client>(
-      c.id ? this.db.from('clients').update(row).eq('id', c.id).select().single()
-           : this.db.from('clients').insert(row).select().single(),
+    const row: Record<string, unknown> = { ...c };
+    // a number that wasn't shown is not sent back (so it is never wiped)
+    for (const k of ['phone', 'whatsapp', 'email'] as const) {
+      if (row[k] === undefined) delete row[k];
+      else row[k] = (row[k] as string | null)?.toString().trim() || null;
+    }
+    const saved = await this.run<{ id: string }>(
+      c.id ? this.db.from('clients').update(row).eq('id', c.id).select('id').single()
+           : this.db.from('clients').insert(row).select('id').single(),
     );
+    this.contacts.update((m) => { const n = { ...m }; delete n[saved.id]; return n; });
+    return this.getClient(saved.id);
   }
   clientHistory(clientId: string) {
     return this.run<{ id: string; sold_at: string; total: number; balance: number; status: string; channel: string; sale_items: { name: string }[]; sale_staff: { staff: { name: string } }[] }[]>(
@@ -266,7 +288,7 @@ export class DataService {
 
   // ---------- bookings ----------
   private readonly bookingSelect =
-    '*, clients(name, phone), booking_services(*), booking_staff(staff_id, part, staff(name)), payments(amount, kind)';
+    '*, clients(name), booking_services(*), booking_staff(staff_id, part, staff(name)), payments(amount, kind)';
 
   bookingsBetween(fromIso: string, toIso: string) {
     return this.run<Booking[]>(
@@ -411,7 +433,7 @@ export class DataService {
   /** Bookings still open (an outside buy can be for one of these clients). */
   openBookings() {
     const from = new Date(Date.now() - 86400000).toISOString();
-    return this.run<Booking[]>(this.db.from('bookings').select('id, guest_name, scheduled_at, channel, status, clients(name, phone)')
+    return this.run<Booking[]>(this.db.from('bookings').select('id, guest_name, scheduled_at, channel, status, clients(name)')
       .in('status', ['pending', 'booked', 'waiting', 'in_progress'])
       .or(`scheduled_at.is.null,scheduled_at.gte.${from},status.in.(waiting,in_progress)`)
       .order('scheduled_at', { nullsFirst: true }).limit(200));

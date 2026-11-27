@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { DataService } from './data.service';
 import { NotifyService } from './notify.service';
 import { environment } from '../../environments/environment';
@@ -52,6 +52,11 @@ export class StaffAuthService {
   readonly token = signal<string | null>(read());
   readonly me = signal<StaffMe | null>(null);
   readonly signedIn = computed(() => !!this.token());
+  /** only the owner sees client numbers */
+  private readonly ownerSync = effect(() => {
+    const own = !!this.me()?.roles.includes('owner');
+    if (own !== this.data.owner()) { this.data.owner.set(own); this.data.contacts.set({}); }
+  });
 
   /** Main role: owner > manager > receptionist > stylist > any other role */
   readonly role = computed<StaffRole | null>(() => {

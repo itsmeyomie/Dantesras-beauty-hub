@@ -62,7 +62,7 @@ import { KshPipe, Ui } from '../core/ui';
           <ion-content class="ion-padding">
             <h3>{{ paying()?.client_name }} – debt payment</h3>
             @if (paying(); as d) {
-              <app-pay-dialog [due]="d.balance" [pay]="payDebt" [stk]="{ purpose: 'debt', sale_id: d.sale_id, phone: d.client_phone }" (done)="paying.set(null); load()" (cancelled)="paying.set(null)" />
+              <app-pay-dialog [due]="d.balance" [pay]="payDebt" [stk]="{ purpose: 'debt', sale_id: d.sale_id, phone: d.client_phone, saved: true }" (done)="paying.set(null); load()" (cancelled)="paying.set(null)" />
             }
           </ion-content>
         </ng-template>

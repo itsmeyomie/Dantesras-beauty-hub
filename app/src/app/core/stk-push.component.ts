@@ -37,7 +37,7 @@ type Step = 'form' | 'sending' | 'waiting' | 'done' | 'failed';
         @case ('waiting') {
           <div class="waiting">
             <div class="pulse"><ion-icon name="phone-portrait-outline"></ion-icon></div>
-            <div class="big">Prompt sent to {{ localPhone(started()?.phone) }}</div>
+            <div class="big">Prompt sent to {{ sentTo() }}</div>
             <p class="muted">{{ audience() === 'client' ? 'Enter your M-Pesa PIN on your phone to pay' : 'Ask the client to enter their M-Pesa PIN' }}
               <strong>{{ amount | ksh }}</strong>.</p>
             <div class="count">{{ secondsLeft() }}s</div>
@@ -71,8 +71,8 @@ type Step = 'form' | 'sending' | 'waiting' | 'done' | 'failed';
             </div>
           </div>
           <ion-item lines="none" class="field">
-            <ion-input label="M-Pesa phone number" labelPlacement="stacked" type="tel" inputmode="tel" placeholder="07XX XXX XXX"
-              [(ngModel)]="phone" data-testid="stk-phone"></ion-input>
+            <ion-input [label]="savedNumber() && !initialPhone() ? 'M-Pesa phone number (empty = saved number)' : 'M-Pesa phone number'" labelPlacement="stacked" type="tel" inputmode="tel"
+              [placeholder]="savedNumber() && !initialPhone() ? 'Saved number' : '07XX XXX XXX'" [(ngModel)]="phone" data-testid="stk-phone"></ion-input>
           </ion-item>
           @if (editableAmount()) {
             <ion-item lines="none" class="field">
@@ -129,6 +129,8 @@ export class StkPushComponent implements OnInit, OnDestroy {
   readonly maxAmount = input<number | null>(null);
   readonly editableAmount = input(true);
   readonly initialPhone = input<string | null>(null, { alias: 'phone' });
+  /** the client has a saved number: the prompt can go there without anyone seeing it */
+  readonly savedNumber = input(false);
   readonly bookingId = input<string>();
   readonly saleId = input<string>();
   readonly studentId = input<string>();
@@ -165,6 +167,11 @@ export class StkPushComponent implements OnInit, OnDestroy {
   }
 
   fmt = ksh;
+  /** the number typed or returned; staff using a saved number don't see it */
+  sentTo() {
+    const p = this.started()?.phone || this.phone;
+    return p ? this.localPhone(p) : "the client's saved number";
+  }
   localPhone(p?: string | null) {
     const d = (p ?? '').replace(/\D/g, '');
     return d.startsWith('254') ? `0${d.slice(3, 6)} ${d.slice(6, 9)} ${d.slice(9)}` : p;
@@ -173,7 +180,8 @@ export class StkPushComponent implements OnInit, OnDestroy {
   async send() {
     this.error.set('');
     const amount = Math.round(Number(this.amount));
-    if (!validPhone(this.phone)) return this.error.set('Enter a Safaricom number, e.g. 0712 345 678');
+    const useSaved = this.savedNumber() && !this.phone.trim();
+    if (!useSaved && !validPhone(this.phone)) return this.error.set('Enter a Safaricom number, e.g. 0712 345 678');
     if (!amount || amount < 1) return this.error.set('Enter the amount');
     const max = this.maxAmount();
     if (max && amount > Math.ceil(max)) return this.error.set(`The most you can pay here is ${ksh(max)}`);
@@ -181,7 +189,7 @@ export class StkPushComponent implements OnInit, OnDestroy {
     this.step.set('sending');
     try {
       const s = await this.mpesa.start({
-        purpose: this.purpose(), phone: this.phone, amount,
+        purpose: this.purpose(), phone: useSaved ? null : this.phone, amount,
         booking_id: this.bookingId(), sale_id: this.saleId(), student_id: this.studentId(),
       });
       this.started.set(s);

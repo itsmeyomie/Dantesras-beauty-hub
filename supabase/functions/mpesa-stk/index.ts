@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     if (!live) {
       const checkout = `ws_CO_SIM_${Date.now()}`;
       await db.rpc('stk_accepted', { p_id: row.id, p_merchant_request_id: 'SIM', p_checkout_request_id: checkout });
-      return json({ id: row.id, checkout_request_id: checkout, phone: row.phone, amount: row.amount, simulated: true,
+      return json({ id: row.id, checkout_request_id: checkout, phone: b.phone ? row.phone : null /* a saved number is not shown to staff */, amount: row.amount, simulated: true,
         customer_message: 'Simulation – no Daraja keys set' });
     }
 
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
       return json({ message: msg }, 400);
     }
     await db.rpc('stk_accepted', { p_id: row.id, p_merchant_request_id: out.MerchantRequestID, p_checkout_request_id: out.CheckoutRequestID });
-    return json({ id: row.id, checkout_request_id: out.CheckoutRequestID, phone: row.phone, amount: row.amount, simulated: false,
+    return json({ id: row.id, checkout_request_id: out.CheckoutRequestID, phone: b.phone ? row.phone : null /* a saved number is not shown to staff */, amount: row.amount, simulated: false,
       customer_message: out.CustomerMessage });
   } catch (e) {
     return json({ message: e instanceof Error ? e.message : String(e) }, 500);

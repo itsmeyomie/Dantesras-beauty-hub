@@ -25,18 +25,18 @@ import { Ui, ageFrom } from '../core/ui';
     <ion-content>
       <div class="page-wrap">
         <app-not-configured />
-        <ion-searchbar placeholder="Search name or phone" [debounce]="300" [(ngModel)]="term" (ionInput)="load()"></ion-searchbar>
+        <ion-searchbar [placeholder]="data.owner() ? 'Search name or phone' : 'Search name (or full phone number)'" [debounce]="300" [(ngModel)]="term" (ionInput)="load()"></ion-searchbar>
         <div class="card">
           @if (clients().length === 0) { <div class="empty">No clients found.</div> }
           <table class="t">
             @if (clients().length) {
-              <thead><tr><th>Name</th><th>Phone</th><th>Area</th><th class="num">Age</th></tr></thead>
+              <thead><tr><th>Name</th>@if (data.owner()) { <th>Phone</th> }<th>Area</th><th class="num">Age</th></tr></thead>
             }
             <tbody>
               @for (c of clients(); track c.id) {
                 <tr (click)="open(c)" style="cursor:pointer">
                   <td><strong>{{ c.name }}</strong></td>
-                  <td>{{ c.phone }}</td>
+                  @if (data.owner()) { <td>{{ c.phone }}</td> }
                   <td class="muted">{{ c.area }}</td>
                   <td class="num">{{ age(c) ?? '' }}</td>
                 </tr>
@@ -57,7 +57,7 @@ import { Ui, ageFrom } from '../core/ui';
   `,
 })
 export class ClientsPage implements ViewWillEnter {
-  private data = inject(DataService);
+  readonly data = inject(DataService);
   private ui = inject(Ui);
   private router = inject(Router);
   readonly clients = signal<Client[]>([]);

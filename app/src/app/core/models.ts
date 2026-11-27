@@ -62,7 +62,8 @@ export interface Booking {
   early_reason?: string | null; original_scheduled_at?: string | null;
   /** home service: the salon brings the hair (hair_items go on her bill) or the client has it */
   hair_source?: 'salon' | 'client' | null; hair_items?: HairItem[];
-  clients?:{ name: string; phone: string | null } | null;
+  /** phone: only for the owner (see DataService.contacts) */
+  clients?: { name: string; phone?: string | null } | null;
   booking_services?: BookingService[];
   booking_staff?: { staff_id: string; part?: 'main' | 'finisher'; staff?: { name: string } }[];
   payments?: { amount: number; kind: string }[];

@@ -6,7 +6,9 @@ import { PaymentEntryComponent, paymentError } from './payment-entry.component';
 import { StkPushComponent } from './stk-push.component';
 import { KshPipe, Ui } from './ui';
 
-export interface StkTarget { purpose: StkPurpose; booking_id?: string; sale_id?: string; student_id?: string; phone?: string | null; }
+export interface StkTarget { purpose: StkPurpose; booking_id?: string; sale_id?: string; student_id?: string; phone?: string | null;
+  /** a number is saved for this client (staff don't see it; the prompt can still go to it) */
+  saved?: boolean; }
 
 /**
  * Generic "receive a payment" box – used for debts, deposits and school fees.
@@ -25,7 +27,7 @@ export interface StkTarget { purpose: StkPurpose; booking_id?: string; sale_id?:
     }
     @if (stk() && mode() === 'stk') {
       <app-stk-push [purpose]="stk()!.purpose" [bookingId]="stk()!.booking_id" [saleId]="stk()!.sale_id" [studentId]="stk()!.student_id"
-        [phone]="stk()!.phone ?? null" [amount]="due()" [maxAmount]="due()" (paid)="done.emit()" (cancelled)="cancelled.emit()" />
+        [phone]="stk()!.phone ?? null" [savedNumber]="!!stk()!.saved" [amount]="due()" [maxAmount]="due()" (paid)="done.emit()" (cancelled)="cancelled.emit()" />
     } @else {
       <app-payment-entry [p]="p" />
       <div class="row">

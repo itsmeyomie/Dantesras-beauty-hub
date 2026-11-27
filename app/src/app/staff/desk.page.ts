@@ -41,7 +41,7 @@ import { AssignSheetComponent } from './assign-sheet.component';
           <div class="p-row"><div class="p-kicker p-spacer">Online requests · {{ requests().length }}</div><span class="p-muted p-small">answer first</span></div>
           @for (b of requests(); track b.id) {
             <div style="padding:10px 0;border-bottom:1px solid rgba(123,30,46,.07)" data-testid="desk-request">
-              <div class="p-row"><b class="p-spacer">{{ b.clients?.name ?? b.guest_name }}</b><span class="p-muted p-small">{{ b.clients?.phone }}</span></div>
+              <div class="p-row"><b class="p-spacer">{{ b.clients?.name ?? b.guest_name }}</b><span class="p-muted p-small">{{ data.phoneOf(b.client_id) }}</span></div>
               <div class="p-muted p-small">{{ b.scheduled_at | date: 'EEE d MMM · HH:mm' }} · {{ names(b) }} · paid {{ paid(b) | ksh }}</div>
               <div class="p-small" style="margin-top:2px">Stylist: <b>{{ stylist(b) || 'Any stylist' }}</b></div>
               <div class="p-row" style="margin-top:8px;gap:6px">
@@ -86,7 +86,7 @@ import { AssignSheetComponent } from './assign-sheet.component';
   `,
 })
 export class DeskPage implements ViewWillEnter, ViewWillLeave {
-  private data = inject(DataService);
+  readonly data = inject(DataService);
   readonly auth = inject(StaffAuthService);
   private ui = inject(Ui);
   private router = inject(Router);
@@ -129,6 +129,7 @@ export class DeskPage implements ViewWillEnter, ViewWillLeave {
       ]);
       this.requests.set(r);
       this.queue.set(q);
+      void this.data.loadContacts([...r, ...q].map((x) => x.client_id));
       this.day.set(d);
       this.takings.set(Number(rep.collected.salon) + Number(rep.collected.school));
     } catch (e) {

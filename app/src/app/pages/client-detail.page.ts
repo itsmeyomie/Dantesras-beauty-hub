@@ -36,8 +36,12 @@ import { KshPipe, Ui, ageFrom } from '../core/ui';
           <div class="card" style="margin-top:12px">
             <h3>Details</h3>
             <div class="form-grid small">
-              <div><span class="muted">Phone</span><br />{{ c.phone }}</div>
-              <div><span class="muted">WhatsApp</span><br />{{ c.whatsapp || c.phone }}</div>
+              @if (data.owner()) {
+                <div><span class="muted">Phone</span><br />{{ c.phone || '—' }}</div>
+                <div><span class="muted">WhatsApp</span><br />{{ c.whatsapp || c.phone || '—' }}</div>
+              } @else {
+                <div data-testid="number-hidden"><span class="muted">Phone</span><br />Only the owner sees it</div>
+              }
               <div><span class="muted">Age</span><br />{{ age() ?? '—' }} {{ (age() ?? 99) <= 12 ? '(kids prices)' : '' }}</div>
               <div><span class="muted">Area</span><br />{{ c.area || '—' }}</div>
               <div><span class="muted">Found us via</span><br />{{ c.source || '—' }}</div>
@@ -95,7 +99,7 @@ import { KshPipe, Ui, ageFrom } from '../core/ui';
           <ion-content class="ion-padding">
             <h3>Debt payment</h3>
             @if (paying(); as d) {
-              <app-pay-dialog [due]="d.balance" [pay]="payDebt" [stk]="{ purpose: 'debt', sale_id: d.sale_id, phone: d.client_phone }" (done)="paying.set(null); load()" (cancelled)="paying.set(null)" />
+              <app-pay-dialog [due]="d.balance" [pay]="payDebt" [stk]="{ purpose: 'debt', sale_id: d.sale_id, phone: d.client_phone, saved: true }" (done)="paying.set(null); load()" (cancelled)="paying.set(null)" />
             }
           </ion-content>
         </ng-template>
@@ -104,7 +108,7 @@ import { KshPipe, Ui, ageFrom } from '../core/ui';
   `,
 })
 export class ClientDetailPage implements ViewWillEnter {
-  private data = inject(DataService);
+  readonly data = inject(DataService);
   private ui = inject(Ui);
   readonly id = input.required<string>();
   readonly client = signal<Client | null>(null);

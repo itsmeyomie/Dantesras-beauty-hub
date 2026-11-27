@@ -12,8 +12,12 @@ import { Ui } from './ui';
   template: `
     <div class="form-grid">
       <ion-item lines="none" class="field"><ion-input label="Name *" labelPlacement="stacked" [(ngModel)]="c.name"></ion-input></ion-item>
-      <ion-item lines="none" class="field"><ion-input label="Phone *" labelPlacement="stacked" type="tel" placeholder="07XX XXX XXX" [(ngModel)]="c.phone"></ion-input></ion-item>
-      <ion-item lines="none" class="field"><ion-input label="WhatsApp (if different)" labelPlacement="stacked" type="tel" [(ngModel)]="c.whatsapp"></ion-input></ion-item>
+      @if (showNumbers) {
+        <ion-item lines="none" class="field"><ion-input label="Phone *" labelPlacement="stacked" type="tel" placeholder="07XX XXX XXX" [(ngModel)]="c.phone"></ion-input></ion-item>
+        <ion-item lines="none" class="field"><ion-input label="WhatsApp (if different)" labelPlacement="stacked" type="tel" [(ngModel)]="c.whatsapp"></ion-input></ion-item>
+      } @else {
+        <div class="small muted" data-testid="number-hidden" style="align-self:center">Phone number: only the owner can see or change it.</div>
+      }
       <ion-item lines="none" class="field"><ion-input label="Date of birth (kids 0–12)" labelPlacement="stacked" type="date" [(ngModel)]="c.birth_date"></ion-input></ion-item>
       <ion-item lines="none" class="field">
         <ion-select label="Gender" labelPlacement="stacked" interface="popover" [(ngModel)]="c.gender">
@@ -52,19 +56,24 @@ export class ClientFormComponent implements OnInit {
   readonly busy = signal(false);
   c: Partial<Client> = {};
 
+  /** a new client: the number is typed in; an existing one: only the owner sees it */
+  showNumbers = true;
   ngOnInit() {
     this.c = { preferred_staff_id: null, ...(this.client() ?? {}) };
+    this.showNumbers = !this.c.id || this.data.owner();
   }
 
   async save() {
     if (!this.c.name?.trim()) return this.ui.toast('Enter the client name', 'danger');
     const phone = (this.c.phone ?? '').replace(/\s+/g, '');
-    if (!/^(\+?254|0)(7|1)\d{8}$/.test(phone)) return this.ui.toast('Enter a valid Kenyan phone number (07… or 01…)', 'danger');
+    if (this.showNumbers && !/^(\+?254|0)(7|1)\d{8}$/.test(phone)) return this.ui.toast('Enter a valid Kenyan phone number (07… or 01…)', 'danger');
     this.busy.set(true);
     try {
+      const { phone: _p, whatsapp: _w, ...rest } = this.c as Partial<Client> & { email?: string | null };
+      delete (rest as { email?: unknown }).email;
       const saved = await this.data.saveClient({
-        ...this.c, name: this.c.name.trim(), phone,
-        birth_date: this.c.birth_date || null, whatsapp: this.c.whatsapp || null,
+        ...rest, name: this.c.name.trim(), birth_date: this.c.birth_date || null,
+        ...(this.showNumbers ? { phone, whatsapp: this.c.whatsapp || null } : {}),
       });
       this.ui.toast('Client saved');
       this.saved.emit(saved);
