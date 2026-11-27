@@ -34,6 +34,8 @@ export interface Variant { id: string; service_id: string; name: string; price: 
 export interface Service {
   id: string; category_id: string; name: string; price: number; price_type: 'fixed' | 'range' | 'from';
   max_price: number | null; commission_pct: number; active: boolean; sort: number;
+  /** fee-split pay rule: blank = the default from Settings */
+  salon_fee?: number | null; finisher_fee?: number | null; stylist_pct?: number | null;
   service_variants?: Variant[];
 }
 export interface Product {
