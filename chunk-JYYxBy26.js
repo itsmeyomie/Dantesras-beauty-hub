@@ -1,0 +1,1 @@
+import{t as $}from"./chunk-BD4ARcNi.js";var t=$(`Share`,{web:()=>import(`./chunk-Tg3Yhrzr.js`).then(r=>new r.ShareWeb)});export{t as Share};
