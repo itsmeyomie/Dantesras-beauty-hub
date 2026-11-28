@@ -6,7 +6,7 @@ import { addIcons } from 'ionicons';
 import {
   barChartOutline, calendarOutline, cashOutline, checkmarkDoneOutline, constructOutline, cutOutline, peopleOutline, personCircleOutline,
   phonePortraitOutline, pricetagsOutline, receiptOutline, schoolOutline, settingsOutline, speedometerOutline, sunnyOutline,
-  walletOutline, mailOutline, storefrontOutline, keyOutline, logOutOutline, bagHandleOutline,
+  walletOutline, mailOutline, storefrontOutline, keyOutline, logOutOutline, bagHandleOutline, cardOutline,
 } from 'ionicons/icons';
 import { StaffAuthService } from '../core/staff-auth.service';
 import { StaffHeaderComponent } from './staff-header.component';
@@ -17,7 +17,7 @@ export interface Module { title: string; sub: string; url: string; icon: string;
 // icons used by the menu, sidebar and tiles
 addIcons({
   constructOutline, speedometerOutline, storefrontOutline, sunnyOutline, calendarOutline, mailOutline, cashOutline, receiptOutline, peopleOutline,
-  walletOutline, bagHandleOutline, cutOutline, pricetagsOutline, personCircleOutline, schoolOutline, checkmarkDoneOutline, barChartOutline,
+  walletOutline, bagHandleOutline, cardOutline, cutOutline, pricetagsOutline, personCircleOutline, schoolOutline, checkmarkDoneOutline, barChartOutline,
   settingsOutline, phonePortraitOutline, keyOutline, logOutOutline,
 });
 
@@ -32,6 +32,7 @@ export const MODULES: Module[] = [
   { title: 'Clients', sub: '& history', url: '/clients', icon: 'people-outline', area: 'clients', group: 'Salon' },
   { title: 'Debts', sub: 'who owes', url: '/debts', icon: 'wallet-outline', area: 'debts', group: 'Salon' },
   { title: 'Bought outside', sub: 'pay shops', url: '/outside', icon: 'bag-handle-outline', area: 'outside', group: 'Salon' },
+  { title: 'Expenses', sub: 'spent & paid back', url: '/expenses', icon: 'card-outline', area: 'expenses', group: 'Salon' },
   { title: 'Service menu', sub: 'prices', url: '/services', icon: 'cut-outline', area: 'services', group: 'Salon' },
   { title: 'Products', sub: '& stock', url: '/products', icon: 'pricetags-outline', area: 'products', group: 'Salon' },
   { title: 'Team', sub: 'commission', url: '/staff-list', icon: 'person-circle-outline', area: 'team', group: 'Salon' },

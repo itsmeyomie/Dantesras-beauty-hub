@@ -13,7 +13,8 @@ export interface StaffMe {
   areas?: string[];
 }
 /** Screens everyone signed in can open. */
-const ALWAYS = ['me', 'more'];
+/** every staff member: Expenses shows each person only their own (the owner sees all) */
+const ALWAYS = ['me', 'more', 'expenses'];
 /** Screens only the owner can open. */
 const OWNER_ONLY = ['settings', 'staff-requests', 'roles'];
 
