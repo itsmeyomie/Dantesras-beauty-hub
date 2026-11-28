@@ -90,7 +90,9 @@ export async function bookSteps(page: Page, opts: { category?: string; service: 
   await page.goto('/portal/book');
   const v = view(page);
   if (opts.category) await v.locator('.p-chip').filter({ hasText: opts.category }).first().click();
-  await v.locator(`[data-service="${opts.service}"] .p-add`).click();
+  else await v.getByTestId('service-search').fill(opts.service); // find it in any category
+  await v.locator(`[data-service="${opts.service}"] .p-add`).first().click();
+  if (!opts.category) await v.getByTestId('service-search').fill('');
   await v.getByTestId('book-next').click();
   if (opts.home) {
     await v.getByTestId('where-home').click();

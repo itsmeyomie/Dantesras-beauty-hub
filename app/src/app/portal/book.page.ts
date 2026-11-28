@@ -38,6 +38,32 @@ type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
           @case (1) {
             <h1 class="p-display" style="font-size:1.7rem;margin:6px 0 14px">Choose <strong>services</strong></h1>
             @if (p.catalog(); as c) {
+              <input class="p-input p-search" type="search" placeholder="Search services, e.g. knotless, wash, gel" [ngModel]="q()" (ngModelChange)="q.set($event)" aria-label="Search services" data-testid="service-search" />
+              @if (q().trim()) {
+                <div class="p-card" style="padding:4px 16px" data-testid="search-results">
+                  @for (m of matches(); track m.s.id) {
+                    <div class="p-service" [attr.data-service]="m.s.name">
+                      <div class="p-spacer">
+                        <div class="name">{{ m.cat.client_type === 'kids' ? 'Kids ' : '' }}{{ m.s.name }}</div>
+                        <div class="price">{{ price(m.s) }} · <span class="p-muted">{{ m.cat.name }}</span></div>
+                        @if (m.s.variants.length) {
+                          <div class="p-variants">
+                            <button class="p-chip" [class.on]="inCart(m.s.id, null)" (click)="toggle(m.cat, m.s, null)">Standard · {{ m.s.price | ksh }}</button>
+                            @for (v of m.s.variants; track v.id) {
+                              <button class="p-chip" [class.on]="inCart(m.s.id, v.id)" (click)="toggle(m.cat, m.s, v.id)">{{ v.name }} · {{ v.price | ksh }}</button>
+                            }
+                          </div>
+                        }
+                      </div>
+                      @if (!m.s.variants.length) {
+                        <button class="p-add" [class.on]="inCart(m.s.id, null)" (click)="toggle(m.cat, m.s, null)" [attr.aria-label]="(inCart(m.s.id, null) ? 'Remove ' : 'Add ') + m.s.name">
+                          <ion-icon [name]="inCart(m.s.id, null) ? 'checkmark-outline' : 'add-outline'"></ion-icon>
+                        </button>
+                      }
+                    </div>
+                  } @empty { <p class="p-muted" style="padding:10px 0" data-testid="search-empty">No service matches "{{ q().trim() }}". Try another word, or call the salon.</p> }
+                </div>
+              } @else {
               <div class="p-chips">
                 @for (cat of c.categories; track cat.id) {
                   <button class="p-chip" [class.on]="cat.id === currentCategory()?.id" (click)="category.set(cat.id)">{{ cat.name }}</button>
@@ -69,6 +95,7 @@ type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
                   }
                 </div>
                 <p class="p-muted p-small">Extension hair is not included – bring your own or buy it at the salon. Prices with a range are confirmed at the salon.</p>
+              }
               }
             } @else {
               @for (i of [1, 2, 3, 4, 5]; track i) { <div class="p-skeleton" style="height:64px;margin-bottom:10px"></div> }
@@ -254,6 +281,15 @@ export class PortalBookPage implements ViewWillEnter {
   readonly created = signal<{ id: string; total: number; deposit: number; when: Date | null } | null>(null);
   readonly d = this.p.draft;
 
+  /** search across all categories (service or category name) */
+  readonly q = signal('');
+  readonly matches = computed(() => {
+    const t = this.q().trim().toLowerCase();
+    if (!t) return [];
+    return (this.p.catalog()?.categories ?? []).flatMap((cat) => cat.services
+      .filter((s) => s.name.toLowerCase().includes(t) || cat.name.toLowerCase().includes(t) || s.variants.some((v) => v.name.toLowerCase().includes(t)))
+      .map((s) => ({ cat, s })));
+  });
   readonly currentCategory = computed(() => this.p.catalog()?.categories.find((c) => c.id === this.category()) ?? this.p.catalog()?.categories[0] ?? null);
   readonly deposit = computed(() => Math.min(this.p.depositMin(), this.p.cartTotal()));
   readonly when = computed(() => (this.d().date && this.d().time ? new Date(`${this.d().date}T${this.d().time}:00`) : null));

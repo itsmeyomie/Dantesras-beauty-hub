@@ -99,7 +99,9 @@ export class StaffAuthService {
     }
   }
   private clear() {
+    const had = !!this.token();
     this.token.set(null);
+    if (had) void this.data.loadReference().catch(() => undefined); // staff-only services leave the menu again
     this.me.set(null);
     this.isDev.set(false);
     write(null);

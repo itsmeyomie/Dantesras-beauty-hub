@@ -277,6 +277,13 @@ export class DataService {
     }
     await this.loadReference();
   }
+  /** Menu order: the categories in the order given. */
+  async orderCategories(ids: string[]) {
+    for (const [i, id] of ids.entries()) {
+      if (this.categories().find((c) => c.id === id)?.sort !== i + 1) await this.run(this.db.from('service_categories').update({ sort: i + 1 }).eq('id', id));
+    }
+    await this.loadReference();
+  }
   async saveCategory(c: Partial<Category>) {
     await this.run(c.id ? this.db.from('service_categories').update(c).eq('id', c.id) : this.db.from('service_categories').insert(c));
     await this.loadReference();

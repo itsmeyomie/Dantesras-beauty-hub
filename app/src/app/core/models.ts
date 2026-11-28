@@ -29,7 +29,8 @@ export interface Client {
   gender: string | null; area: string | null; source: string | null; notes: string | null;
   parent_id: string | null; preferred_staff_id: string | null; created_at: string;
 }
-export interface Category { id: string; name: string; client_type: 'kids' | 'adult' | 'any'; sort: number; }
+/** staff_only: hidden from clients (menu, online booking), e.g. Finishers */
+export interface Category { id: string; name: string; client_type: 'kids' | 'adult' | 'any'; sort: number; staff_only?: boolean; }
 export interface Variant { id: string; service_id: string; name: string; price: number; sort: number; }
 export interface Service {
   id: string; category_id: string; name: string; price: number; price_type: 'fixed' | 'range' | 'from';

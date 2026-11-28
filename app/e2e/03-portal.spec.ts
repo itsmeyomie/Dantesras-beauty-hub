@@ -15,7 +15,7 @@ test('home: brand, services and tabs; no staff menu for clients', async ({ page 
   const v = view(page);
   await expect(v.getByTestId('brand-title')).toContainText('beauty moment');
   await expect(v.getByTestId('featured')).toBeVisible();
-  await expect(v.locator('.p-cat')).toHaveCount(5);
+  await expect(v.locator('.p-cat')).toHaveCount(6); // Washes, Locs & Undo, Treatments & Care, Nails, Kids Hair, Adult Hair
   await expect(v.locator('.p-cat').filter({ hasText: 'Nails' })).toContainText('from KSh 500');
   expect(await page.locator('ion-menu').evaluate((m) => (m as unknown as { disabled: boolean }).disabled)).toBe(true);
   await v.locator('.p-cat').filter({ hasText: 'Kids Hair' }).click();
@@ -184,6 +184,7 @@ test('calendar and any-time picking: closed hours and a busy stylist suggest oth
 
   await page.goto('/portal/book');
   const v = view(page);
+  await v.locator('.p-chip').filter({ hasText: 'Nails' }).first().click();
   await v.locator('[data-service="Gel"] .p-add').click();
   await v.getByTestId('book-next').click();
   await v.getByTestId('book-next').click();

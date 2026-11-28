@@ -2,10 +2,10 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonMenuButton, IonModal, IonSelect,
-  IonSelectOption, IonTitle, IonToggle, IonToolbar,
+  IonSearchbar, IonSelectOption, IonTitle, IonToggle, IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addOutline, trashOutline } from 'ionicons/icons';
+import { addOutline, arrowDownOutline, arrowUpOutline, trashOutline } from 'ionicons/icons';
 import { DataService } from '../core/data.service';
 import { Category, Service, Variant } from '../core/models';
 import { NotConfiguredComponent } from '../core/not-configured.component';
@@ -13,7 +13,7 @@ import { KshPipe, Ui } from '../core/ui';
 
 @Component({
   selector: 'app-services',
-  imports: [FormsModule, KshPipe, IonHeader, IonToolbar, IonButtons, IonMenuButton, IonTitle, IonContent, IonButton, IonIcon, IonModal, IonItem, IonInput, IonSelect, IonSelectOption, IonToggle, NotConfiguredComponent],
+  imports: [FormsModule, KshPipe, IonHeader, IonToolbar, IonButtons, IonMenuButton, IonTitle, IonContent, IonButton, IonIcon, IonModal, IonItem, IonInput, IonSelect, IonSelectOption, IonToggle, IonSearchbar, NotConfiguredComponent],
   template: `
     <ion-header><ion-toolbar>
       <ion-buttons slot="start"><ion-menu-button></ion-menu-button></ion-buttons>
@@ -26,9 +26,17 @@ import { KshPipe, Ui } from '../core/ui';
     <ion-content>
       <div class="page-wrap">
         <app-not-configured />
+        <ion-searchbar placeholder="Search services" [debounce]="150" [value]="q()" (ionInput)="q.set($any($event).detail.value ?? '')" data-testid="menu-search"></ion-searchbar>
         <p class="muted small">Prices in KSh. "Extended" and other options are variants with their own price. Commission is set per service (0–50%).</p>
-        @for (g of grouped(); track g.cat.id) {
-          <div class="section-title">{{ g.cat.name }} @if (g.cat.client_type === 'kids') { <span>(ages 0–12)</span> }</div>
+        @for (g of grouped(); track g.cat.id; let i = $index, last = $last) {
+          <div class="cat-head" data-testid="cat-head">
+            <div class="section-title" style="margin:0">{{ g.cat.name }} @if (g.cat.client_type === 'kids') { <span>(ages 0–12)</span> }
+              @if (g.cat.staff_only) { <span class="pill cancelled" data-testid="staff-only-pill">staff only</span> }</div>
+            <span class="spacer"></span>
+            <ion-toggle [checked]="!!g.cat.staff_only" (ionChange)="setStaffOnly(g.cat, $event.detail.checked)" labelPlacement="start" data-testid="cat-staff-only">Staff only</ion-toggle>
+            <ion-button fill="clear" size="small" [disabled]="i === 0 || busy() || !!q().trim()" (click)="move(i, -1)" aria-label="Move up" data-testid="cat-up"><ion-icon slot="icon-only" name="arrow-up-outline"></ion-icon></ion-button>
+            <ion-button fill="clear" size="small" [disabled]="last || busy() || !!q().trim()" (click)="move(i, 1)" aria-label="Move down" data-testid="cat-down"><ion-icon slot="icon-only" name="arrow-down-outline"></ion-icon></ion-button>
+          </div>
           <div class="card">
             <table class="t">
               <thead><tr><th>Service</th><th class="num">Price</th><th class="num">Comm.</th></tr></thead>
@@ -102,6 +110,10 @@ import { KshPipe, Ui } from '../core/ui';
       </ion-modal>
     </ion-content>
   `,
+  styles: [`
+    .cat-head { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 18px 0 6px; }
+    .cat-head ion-toggle { font-size: .85rem; margin-right: 4px; }
+  `],
 })
 export class ServicesPage {
   readonly data = inject(DataService);
@@ -110,12 +122,18 @@ export class ServicesPage {
   readonly busy = signal(false);
   variants: Partial<Variant>[] = [];
 
-  readonly grouped = computed(() =>
-    this.data.categories().map((cat: Category) => ({ cat, services: this.data.services().filter((s) => s.category_id === cat.id) })),
-  );
+  readonly q = signal('');
+  readonly grouped = computed(() => {
+    const t = this.q().trim().toLowerCase();
+    return this.data.categories()
+      .map((cat: Category) => ({ cat, services: this.data.services().filter((s) => s.category_id === cat.id
+        && (!t || cat.name.toLowerCase().includes(t) || s.name.toLowerCase().includes(t)
+            || (s.service_variants ?? []).some((v) => v.name.toLowerCase().includes(t)))) }))
+      .filter((g) => !t || g.services.length);
+  });
 
   constructor() {
-    addIcons({ addOutline, trashOutline });
+    addIcons({ addOutline, trashOutline, arrowUpOutline, arrowDownOutline });
   }
 
   priceText(s: Service) {
@@ -158,6 +176,30 @@ export class ServicesPage {
       this.ui.error(e);
     } finally {
       this.busy.set(false);
+    }
+  }
+
+  /** Move a category up or down the menu (clients see the same order). */
+  async move(i: number, dir: -1 | 1) {
+    const ids = this.data.categories().map((c) => c.id);
+    [ids[i], ids[i + dir]] = [ids[i + dir], ids[i]];
+    this.busy.set(true);
+    try {
+      await this.data.orderCategories(ids);
+    } catch (e) {
+      this.ui.error(e);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+  /** Staff only: clients don't see these services and can't book them online (e.g. Finishers). */
+  async setStaffOnly(cat: Category, on: boolean) {
+    if (!!cat.staff_only === on) return;
+    try {
+      await this.data.saveCategory({ id: cat.id, staff_only: on });
+      this.ui.toast(on ? `${cat.name}: hidden from clients` : `${cat.name}: clients can see and book it`);
+    } catch (e) {
+      this.ui.error(e);
     }
   }
 
