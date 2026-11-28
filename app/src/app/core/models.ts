@@ -43,6 +43,8 @@ export interface Service {
 export interface Product {
   id: string; name: string; category: string | null; unit: string; price: number; cost: number;
   stock_qty: number; low_stock: number; commission_pct: number; status: 'active' | 'pending' | 'inactive';
+  /** staff get this many KSh per item sold (shared by everyone on the job) */
+  staff_fee?: number | null;
 }
 export interface BookingService { id?: string; service_id: string | null; variant_id: string | null; name: string; price: number; }
 /** Hair the salon carries to a home service (a product from stock). */

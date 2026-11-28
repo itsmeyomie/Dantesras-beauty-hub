@@ -89,7 +89,7 @@ test('built-in roles cannot be deleted and the owner role is fixed', async ({ pa
   await expect(page.getByTestId('role-form').getByTestId('role-save')).toHaveCount(0);
 });
 
-test('finisher: assigned with the main stylist, shares the commission, sees "Finish for" on My day', async ({ page, request }) => {
+test('finisher: assigned with the main stylist, paid an amount, sees "Finish for" on My day', async ({ page, request }) => {
   const tag = Date.now().toString(36).slice(-5);
   const main = await addStaff(request, `Main ${tag} Braider`, ['stylist']);
   const fin = await addStaff(request, `Fin ${tag} Finisher`, ['finisher']);
@@ -111,13 +111,10 @@ test('finisher: assigned with the main stylist, shares the commission, sees "Fin
   await toast(page, `Assigned to Main + finisher Fin`);
   await expect(v.locator('.p-card.p-row').filter({ hasText: guest })).toContainText('finisher Fin');
 
-  // checkout: commission split 80 / 20 (finisher share setting)
+  // checkout: both are on the job; pay is in amounts – no percentage shares to fill in
   await page.goto(`/checkout?booking=${bid}`);
-  const shares = view(page).getByRole('spinbutton', { name: 'Share percent' });
-  await expect(shares).toHaveCount(2);
-  await expect(shares.nth(0)).toHaveValue('80');
-  await expect(shares.nth(1)).toHaveValue('20');
-  await expect(view(page).getByText(`Fin ${tag} Finisher · finisher`)).toBeVisible();
+  await expect(view(page).getByRole('spinbutton', { name: 'Share percent' })).toHaveCount(0);
+  await expect(view(page).getByTestId('co-finisher')).toContainText(`Fin ${tag} Finisher`);
 });
 
 test('finisher login lands on My day with jobs marked "Finish for" and no walk-in taking', async ({ page, request }) => {

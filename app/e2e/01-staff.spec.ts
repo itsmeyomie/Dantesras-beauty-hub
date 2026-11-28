@@ -57,7 +57,7 @@ test('walk-in: add guest to queue, start, checkout with cash, shows in sales', a
   const co = view(page);
   await expect(co.locator('ion-title')).toHaveText('Checkout');
   await expect(co.getByText('Booking checkout')).toBeVisible();
-  await expect(co.locator('table.t').first()).toContainText('Gel');
+  await expect(co.getByTestId('co-lines')).toContainText('Gel');
   await choose(page, co, 'Stylist(s)', 'Wanjiku Kamau');
   await fill(co.locator('app-payment-entry').first(), 'Amount', '500');
   await co.locator('ion-button').filter({ hasText: 'Complete sale' }).click();

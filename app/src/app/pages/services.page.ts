@@ -28,7 +28,7 @@ import { feeSplit } from '../core/pay-split';
       <div class="page-wrap">
         <app-not-configured />
         <ion-searchbar placeholder="Search services" [debounce]="150" [value]="q()" (ionInput)="q.set($any($event).detail.value ?? '')" data-testid="menu-search"></ion-searchbar>
-        <p class="muted small">Prices in KSh. "Extended" and other options are variants with their own price. Commission is set per service (0–50%).</p>
+        <p class="muted small">Prices in KSh. "Extended" and other options are variants with their own price. @if (data.owner()) { Staff pay is in shillings per service (salon fee, finisher, main stylist) – only you see it. }</p>
         @for (g of grouped(); track g.cat.id; let i = $index, last = $last) {
           <div class="cat-head" data-testid="cat-head">
             <div class="section-title" style="margin:0">{{ g.cat.name }} @if (g.cat.client_type === 'kids') { <span>(ages 0–12)</span> }
@@ -40,7 +40,7 @@ import { feeSplit } from '../core/pay-split';
           </div>
           <div class="card">
             <table class="t">
-              <thead><tr><th>Service</th><th class="num">Price</th><th class="num">Comm.</th></tr></thead>
+              <thead><tr><th>Service</th><th class="num">Price</th>@if (data.owner()) { <th class="num">Stylist gets</th> }</tr></thead>
               <tbody>
                 @for (s of g.services; track s.id) {
                   <tr (click)="edit(s)" style="cursor:pointer" [style.opacity]="s.active ? 1 : 0.45">
@@ -48,7 +48,7 @@ import { feeSplit } from '../core/pay-split';
                       @for (v of s.service_variants ?? []; track v.id) { <br /><span class="muted small">{{ v.name }}: {{ v.price | ksh }}</span> }
                     </td>
                     <td class="num">{{ priceText(s) }}</td>
-                    <td class="num">{{ s.commission_pct }}%</td>
+                    @if (data.owner()) { <td class="num" data-testid="svc-stylist-amount">@if (s.stylist_fee != null) { {{ s.stylist_fee | ksh }} } @else { <span class="muted small">default</span> }</td> }
                   </tr>
                 }
               </tbody>
@@ -80,15 +80,14 @@ import { feeSplit } from '../core/pay-split';
                 @if (f.price_type === 'range') {
                   <ion-item lines="none" class="field"><ion-input label="Maximum price (KSh)" labelPlacement="stacked" type="number" [(ngModel)]="f.max_price"></ion-input></ion-item>
                 }
-                <ion-item lines="none" class="field"><ion-input label="Commission % (0–50)" labelPlacement="stacked" type="number" min="0" max="50" [(ngModel)]="f.commission_pct"></ion-input></ion-item>
                 <ion-item lines="none" class="field"><ion-toggle [(ngModel)]="f.active">Active on the menu</ion-toggle></ion-item>
               </div>
-              @if (feeRule() && data.owner()) {
+              @if (data.owner()) {
                 <div class="section-title">Staff pay for this service – only you see this (blank = Settings)</div>
                 <div class="form-grid">
                   <ion-item lines="none" class="field"><ion-input label="Salon fee (KSh)" labelPlacement="stacked" type="number" min="0" [placeholder]="'Default ' + data.setting('salon_fee', 200)" [(ngModel)]="f.salon_fee" data-testid="svc-salon-fee"></ion-input></ion-item>
                   <ion-item lines="none" class="field"><ion-input label="Finisher (KSh)" labelPlacement="stacked" type="number" min="0" [placeholder]="'Default ' + data.setting('finisher_fee', 250)" [(ngModel)]="f.finisher_fee" data-testid="svc-finisher-fee"></ion-input></ion-item>
-                  <ion-item lines="none" class="field"><ion-input label="Main stylist (KSh)" labelPlacement="stacked" type="number" min="0" [placeholder]="'Default ' + data.setting('stylist_balance_pct', 50) + '% of the rest'" [(ngModel)]="f.stylist_fee" data-testid="svc-stylist-fee"></ion-input></ion-item>
+                  <ion-item lines="none" class="field"><ion-input label="Main stylist (KSh)" labelPlacement="stacked" type="number" min="0" [placeholder]="'Default ' + data.setting('stylist_fee', 0)" [(ngModel)]="f.stylist_fee" data-testid="svc-stylist-fee"></ion-input></ion-item>
                 </div>
                 @let px = payExample(f);
                 <p class="small muted" data-testid="svc-pay-example">At {{ px.services | ksh }} with a finisher: salon fee {{ px.salonFee | ksh }}, finisher {{ px.finisherFee | ksh }}, main stylist {{ px.stylist | ksh }}, <strong>owner keeps {{ px.ownerKeeps | ksh }}</strong>.</p>
@@ -151,7 +150,7 @@ export class ServicesPage {
     const amt = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v));
     return feeSplit([{ service_id: 'x', qty: 1, unit_price: Number(f.price) || 0 }],
       [{ ...f, id: 'x', salon_fee: amt(f.salon_fee), finisher_fee: amt(f.finisher_fee), stylist_fee: amt(f.stylist_fee), stylist_pct: null } as Service],
-      { salonFee: Number(this.data.setting('salon_fee', 200)), finisherFee: Number(this.data.setting('finisher_fee', 250)), stylistPct: Number(this.data.setting('stylist_balance_pct', 50)) }, 1, true);
+      { salonFee: Number(this.data.setting('salon_fee', 200)), finisherFee: Number(this.data.setting('finisher_fee', 250)), stylistFee: Number(this.data.setting('stylist_fee', 0)) }, 1, true);
   }
   /** the owner pays staff with "salon fee + finisher fee, then split" (Settings) */
   feeRule() {
@@ -165,20 +164,18 @@ export class ServicesPage {
 
   async save(f: Partial<Service>) {
     if (!f.name?.trim() || !f.category_id) return this.ui.toast('Enter a name and category', 'danger');
-    const pct = Number(f.commission_pct ?? 0);
-    if (pct < 0 || pct > 50) return this.ui.toast('Commission must be between 0 and 50%', 'danger');
     if (f.price_type === 'range' && Number(f.max_price) < Number(f.price)) return this.ui.toast('Maximum must be above minimum', 'danger');
     if (this.variants.some((v) => !v.name?.trim())) return this.ui.toast('Every variant needs a name', 'danger');
     // fee-split amounts: blank = the default from Settings
     const amt = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v));
-    const fees = this.feeRule() && this.data.owner() ? { salon_fee: amt(f.salon_fee), finisher_fee: amt(f.finisher_fee), stylist_fee: amt(f.stylist_fee) } : {};
+    const fees = this.data.owner() ? { salon_fee: amt(f.salon_fee), finisher_fee: amt(f.finisher_fee), stylist_fee: amt(f.stylist_fee) } : {};
     if (Object.values(fees).some((v) => v !== null && !(v >= 0))) return this.ui.toast('Pay amounts cannot be negative', 'danger');
     if (fees.salon_fee != null && (fees.salon_fee ?? 0) + (fees.finisher_fee ?? 0) + (fees.stylist_fee ?? 0) > Number(f.price)) return this.ui.toast('Salon fee, finisher and stylist are more than the price', 'danger');
     const { salon_fee: _a, finisher_fee: _b, stylist_fee: _c, stylist_pct: _d, ...plain } = f;
     this.busy.set(true);
     try {
       await this.data.saveService(
-        { ...plain, ...fees, name: f.name.trim(), price: Number(f.price), commission_pct: pct, max_price: f.price_type === 'range' ? Number(f.max_price) : null },
+        { ...plain, ...fees, name: f.name.trim(), price: Number(f.price), max_price: f.price_type === 'range' ? Number(f.max_price) : null },
         this.variants.map((v) => ({ ...v, price: Number(v.price) })),
       );
       this.ui.toast('Service saved');

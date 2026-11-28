@@ -33,7 +33,7 @@ import { KshPipe, Ui } from '../core/ui';
           @if (!data.products().length) { <div class="empty">No products yet. Add extension hair, oils, nail products…</div> }
           <table class="t">
             @if (data.products().length) {
-              <thead><tr><th>Product</th><th class="num">Price</th><th class="num">In stock</th><th class="num">Comm.</th><th></th></tr></thead>
+              <thead><tr><th>Product</th><th class="num">Price</th><th class="num">In stock</th><th class="num">Staff get</th><th></th></tr></thead>
             }
             <tbody>
               @for (p of data.products(); track p.id) {
@@ -41,7 +41,7 @@ import { KshPipe, Ui } from '../core/ui';
                   <td><strong>{{ p.name }}</strong><br /><span class="muted small">{{ p.category }}</span></td>
                   <td class="num">{{ p.price | ksh }}</td>
                   <td class="num" [class.down]="p.stock_qty <= p.low_stock">{{ p.stock_qty }} {{ p.unit }}</td>
-                  <td class="num">{{ p.commission_pct }}%</td>
+                  <td class="num">{{ (p.staff_fee ?? 0) | ksh }}</td>
                   <td class="num">
                     @if (p.status === 'pending') {
                       <ion-button size="small" color="secondary" (click)="approve(p); $event.stopPropagation()">Approve</ion-button>
@@ -67,7 +67,7 @@ import { KshPipe, Ui } from '../core/ui';
                 <ion-item lines="none" class="field"><ion-input label="Buying cost (KSh)" labelPlacement="stacked" type="number" [(ngModel)]="f.cost"></ion-input></ion-item>
                 <ion-item lines="none" class="field"><ion-input label="Quantity in stock" labelPlacement="stacked" type="number" [(ngModel)]="f.stock_qty"></ion-input></ion-item>
                 <ion-item lines="none" class="field"><ion-input label="Low-stock alert at" labelPlacement="stacked" type="number" [(ngModel)]="f.low_stock"></ion-input></ion-item>
-                <ion-item lines="none" class="field"><ion-input label="Commission % (0–50)" labelPlacement="stacked" type="number" [(ngModel)]="f.commission_pct"></ion-input></ion-item>
+                <ion-item lines="none" class="field"><ion-input label="Staff get per item sold (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="f.staff_fee" data-testid="product-staff-fee"></ion-input></ion-item>
                 <ion-item lines="none" class="field">
                   <ion-select label="Status" labelPlacement="stacked" interface="popover" [(ngModel)]="f.status">
                     <ion-select-option value="active">Active</ion-select-option>
@@ -104,17 +104,18 @@ export class ProductsPage {
   }
   edit(p: Product | null) {
     // New products added by staff start as "pending" until the owner approves (login will enforce this later).
-    this.form.set(p ? { ...p } : { unit: 'piece', price: 0, cost: 0, stock_qty: 0, low_stock: 0, commission_pct: 0, status: 'pending' });
+    this.form.set(p ? { ...p } : { unit: 'piece', price: 0, cost: 0, stock_qty: 0, low_stock: 0, staff_fee: 0, status: 'pending' });
   }
   async save(f: Partial<Product>) {
     if (!f.name?.trim()) return this.ui.toast('Enter a product name', 'danger');
-    const pct = Number(f.commission_pct ?? 0);
-    if (pct < 0 || pct > 50) return this.ui.toast('Commission must be between 0 and 50%', 'danger');
+    const fee = Number(f.staff_fee ?? 0);
+    if (!(fee >= 0)) return this.ui.toast('Staff amount cannot be negative', 'danger');
+    if (fee > Number(f.price)) return this.ui.toast('Staff amount is more than the price', 'danger');
     this.busy.set(true);
     try {
       await this.data.saveProduct({
         ...f, name: f.name.trim(), price: Number(f.price), cost: Number(f.cost), stock_qty: Number(f.stock_qty),
-        low_stock: Number(f.low_stock), commission_pct: pct,
+        low_stock: Number(f.low_stock), staff_fee: fee,
       });
       this.ui.toast('Product saved');
       this.form.set(null);

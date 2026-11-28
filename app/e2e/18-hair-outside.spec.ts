@@ -67,8 +67,8 @@ test('home service: salon brings the hair – shown to the stylist, on her bill,
   await api.post(`${API}/booking_staff`, { data: { booking_id: b.id, staff_id: await wanjiku(request), part: 'main' } }); // the stylist who served her
   await page.goto(`/checkout?booking=${b.id}`);
   const v = view(page);
-  await expect(v.locator('table.t').first()).toContainText('Kanekalon braid hair × 2');
-  await expect(v.locator('table.t').first()).toContainText('KSh 600');
+  await expect(v.getByTestId('co-lines')).toContainText('Kanekalon braid hair × 2');
+  await expect(v.getByTestId('co-lines')).toContainText('KSh 600');
   const total = Number((await v.getByTestId('co-total').textContent())!.replace(/[^0-9]/g, ''));
   await fill(v.locator('app-payment-entry').first(), 'Amount', String(total));
   await v.locator('ion-button').filter({ hasText: 'Complete sale' }).click();
@@ -143,7 +143,7 @@ test('bought outside: on her bill at checkout, shop paid in the evening', async 
   await sp.goto(`/checkout?booking=${id}`);
   const co = view(sp);
   await expect(co.getByTestId('outside-line')).toBeVisible();
-  await expect(co.locator('table.t').first()).toContainText('Braids 1B');
+  await expect(co.getByTestId('co-lines')).toContainText('Braids 1B');
   await expect(co.getByTestId('co-total')).toContainText('2,600');
   await fill(co.locator('app-payment-entry').first(), 'Amount', '2600');
   await co.locator('ion-button').filter({ hasText: 'Complete sale' }).click();

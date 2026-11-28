@@ -10,9 +10,10 @@ import { newPhone, signIn } from './portal-helpers';
 const API = 'http://localhost:54329/rest/v1';
 const H = { Prefer: 'return=representation' };
 
-async function setRule(request: APIRequestContext, rule: 'percent' | 'fee_split') {
+/** Settings defaults: salon fee 200, finisher 250, main stylist (KSh) */
+async function setDefaults(request: APIRequestContext, stylist = 575) {
   const api = await ownerApi(request);
-  for (const [key, value] of [['pay_rule', rule], ['salon_fee', 200], ['finisher_fee', 250], ['stylist_balance_pct', 50]] as const) {
+  for (const [key, value] of [['salon_fee', 200], ['finisher_fee', 250], ['stylist_fee', stylist]] as const) {
     await api.post(`${API}/settings`, { headers: { Prefer: 'resolution=merge-duplicates' }, data: { key, value } });
   }
 }
@@ -49,29 +50,27 @@ async function payAndFinish(page: import('@playwright/test').Page, amount: strin
 }
 
 test.afterEach(async ({ request }) => {
-  await setRule(request, 'percent'); // the other tests expect the commission % rule
+  await setDefaults(request, 0);
 });
 
-test('owner switches on fixed amounts in Settings and sees the 1,600 example', async ({ page, request }) => {
-  await setRule(request, 'percent');
+test('owner sets the default amounts in Settings (KSh, no percentages)', async ({ page, request }) => {
+  await setDefaults(request, 0);
   await loginAs(page, request, 'owner');
   await page.goto('/settings');
   const card = view(page).getByTestId('pay-card');
-  await expect(card.getByTestId('finisher-share')).toBeVisible();
-  await choose(page, card, 'How staff are paid', 'Fixed amounts');
-  await expect(card.getByTestId('pay-example')).toContainText('main stylist KSh 575');
-  await expect(card.getByTestId('pay-example')).toContainText('owner keeps KSh 575');
-  await fill(card, 'Finisher fee', '300');
-  await expect(card.getByTestId('pay-example')).toContainText('owner keeps KSh 550'); // 1,600 − 200 − 300 = 1,100 → 550 / 550
-  await fill(card, 'Finisher fee', '250');
+  await expect(card.getByTestId('pay-rule')).toHaveCount(0);
+  await expect(card).not.toContainText('%');
+  await fill(card, 'Main stylist (KSh)', '500');
+  await expect(card.getByTestId('pay-example')).toContainText('main stylist KSh 500');
+  await expect(card.getByTestId('pay-example')).toContainText('owner keeps KSh 650'); // 1,600 − 200 − 250 − 500
   await view(page).locator('ion-button').filter({ hasText: 'Save settings' }).click();
   await toast(page, 'Settings saved');
-  const saved = await (await (await ownerApi(request)).get(`${API}/settings?key=eq.pay_rule`)).json();
-  expect(saved[0].value).toBe('fee_split');
+  const saved = await (await (await ownerApi(request)).get(`${API}/settings?key=eq.stylist_fee`)).json();
+  expect(Number(saved[0].value)).toBe(500);
 });
 
 test('a service with its own amounts: 1,800 → salon 200, finisher 200, stylist 700, owner 700', async ({ page, request }) => {
-  await setRule(request, 'fee_split');
+  await setDefaults(request);
   const api = await ownerApi(request);
   const cat = (await (await api.get(`${API}/service_categories?select=id&name=eq.Adult%20Hair`)).json())[0].id;
   const name = `Knotless 1800 ${Date.now().toString(36).slice(-4)}`;
@@ -102,8 +101,8 @@ test('a service with its own amounts: 1,800 → salon 200, finisher 200, stylist
   expect(e.by[faith]).toBe(200);
 });
 
-test('no amounts on the service: defaults 575 / 250; no finisher: stylist 700, owner 700', async ({ page, request }) => {
-  await setRule(request, 'fee_split');
+test('no amounts on the service: Settings defaults 575 / 250; no finisher: stylist 575, owner 825', async ({ page, request }) => {
+  await setDefaults(request);
   const a = await job(request, `Split ${Date.now().toString(36).slice(-5)}`);
   await loginAs(page, request, 'owner');
   await page.goto(`/checkout?booking=${a.id}`);
@@ -117,22 +116,22 @@ test('no amounts on the service: defaults 575 / 250; no finisher: stylist 700, o
   await page.goto(`/checkout?booking=${b.id}`);
   box = view(page).getByTestId('pay-split');
   await expect(box.getByTestId('split-finisher')).toHaveCount(0);
-  await expect(box.getByTestId('split-stylist')).toHaveText('KSh 700');
-  await expect(box.getByTestId('split-owner')).toHaveText('KSh 700');
+  await expect(box.getByTestId('split-stylist')).toHaveText('KSh 575');
+  await expect(box.getByTestId('split-owner')).toHaveText('KSh 825');
   await payAndFinish(page, '1600');
-  expect((await earnings(request, b.id)).by[b.wanjiku]).toBe(700);
+  expect((await earnings(request, b.id)).by[b.wanjiku]).toBe(575);
 });
 
 test('owner types the amounts for one job; stylists and managers never see the split', async ({ page, request }) => {
-  await setRule(request, 'fee_split');
+  await setDefaults(request);
   const { id, wanjiku, faith } = await job(request, `Own ${Date.now().toString(36).slice(-5)}`);
   await loginAs(page, request, 'owner');
   await page.goto(`/checkout?booking=${id}`);
   const box = view(page).getByTestId('pay-split');
   await box.getByTestId('choice-change').click();
   await fill(box, 'Salon fee (KSh)', '300');
-  await fill(box, 'Finisher (KSh)', '300');
-  await fill(box, 'Main stylist (KSh)', '600');
+  await fill(box, 'Faith Wambui – finisher', '300');
+  await fill(box, 'Wanjiku Kamau – stylist', '600');
   await expect(box.getByTestId('split-owner')).toHaveText('KSh 400');
   await payAndFinish(page, '1600');
   const e = await earnings(request, id);
@@ -152,7 +151,7 @@ test('owner types the amounts for one job; stylists and managers never see the s
   const r = await request.post(`${API}/rpc/checkout`, {
     headers: { 'x-staff-token': sty },
     data: { p: { booking_id: second.id, guest_name: 'x', channel: 'salon', discount: 0, items: [{ kind: 'service', name: 'Knotless', qty: 1, unit_price: 1600 }],
-      staff: [{ staff_id: second.wanjiku, share_pct: 100 }], payments: [{ method: 'cash', amount: 1600 }], pay: { salon_fee: 0, finisher_fee: 0, stylist_amount: 1600 } } },
+      staff: [{ staff_id: second.wanjiku, share_pct: 100 }], payments: [{ method: 'cash', amount: 1600 }], pay: { salon_fee: 0, people: { [second.wanjiku]: 1600 } } } },
   });
   expect(r.ok()).toBeFalsy();
   expect(await r.text()).toContain('Only the owner');
@@ -190,4 +189,45 @@ test('the client is told who her stylist and finisher are – no money', async (
   expect(sty.body).toContain('Wanjiku Kamau will be your stylist');
   expect(fin.body).toContain('Faith Wambui will finish your hair');
   expect(JSON.stringify(notes)).not.toMatch(/KSh|\d{3,}\s*(bob|\/=)/);
+});
+
+test('two stylists share the stylist amount equally – no percentages at checkout', async ({ page, request }) => {
+  await setDefaults(request, 600);
+  const api = await ownerApi(request);
+  const esther = (await (await api.get(`${API}/staff?select=id&name=eq.Esther%20Muthoni`)).json())[0].id;
+  const { id, wanjiku } = await job(request, `Two ${Date.now().toString(36).slice(-5)}`, false);
+  await api.post(`${API}/booking_staff`, { data: { booking_id: id, staff_id: esther, part: 'main' } });
+  await loginAs(page, request, 'owner');
+  await page.goto(`/checkout?booking=${id}`);
+  const v = view(page);
+  await expect(v.getByTestId('joint-note')).toContainText('shared equally');
+  await expect(v.locator('ion-input[aria-label="Share percent"]')).toHaveCount(0);
+  await expect(v.getByTestId('pay-split')).not.toContainText('%');
+  await expect(v.getByTestId('split-stylist')).toHaveText('KSh 600');
+  await payAndFinish(page, '1600');
+  const e = await earnings(request, id);
+  expect(e.by[wanjiku]).toBe(300);
+  expect(e.by[esther]).toBe(300);
+});
+
+test('products pay staff a set KSh amount per item', async ({ page, request }) => {
+  await setDefaults(request, 0);
+  const api = await ownerApi(request);
+  const p = (await (await api.get(`${API}/products?select=id,name,price&name=eq.Kanekalon%20braid%20hair`)).json())[0];
+  await loginAs(page, request, 'owner');
+  await page.goto('/products');
+  await view(page).locator('table.t tr').filter({ hasText: p.name }).first().click();
+  const m = page.locator('ion-modal.show-modal').last();
+  await fill(m, 'Staff get per item sold', '40');
+  await m.locator('ion-button').filter({ hasText: /^Save$/ }).click();
+  await toast(page, 'Product saved');
+  const { id, wanjiku } = await job(request, `Prod ${Date.now().toString(36).slice(-5)}`, false);
+  await page.goto(`/checkout?booking=${id}`);
+  const v = view(page);
+  await v.locator('ion-select[label="Product"]').click();
+  await page.locator('ion-action-sheet').filter({ visible: true }).locator('button').filter({ hasText: p.name }).first().click();
+  await fill(v, 'Qty', '2');
+  await v.locator('ion-button').filter({ hasText: /^Add$/ }).first().click();
+  await payAndFinish(page, String(1600 + 2 * Number(p.price)));
+  expect((await earnings(request, id)).by[wanjiku]).toBe(80); // 2 × 40; the service pays 0 (default 0)
 });

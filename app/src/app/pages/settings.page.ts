@@ -36,27 +36,16 @@ interface Hours { mon_sat: { open: string; close: string }; sun: { open: string;
         </div>
         <div class="card" style="margin-top:12px" data-testid="pay-card">
           <h3>Staff pay</h3>
-          <ion-item lines="none" class="field">
-            <ion-select label="How staff are paid for services" labelPlacement="stacked" interface="popover" [(ngModel)]="payRule" data-testid="pay-rule">
-              <ion-select-option value="percent">Commission % per service</ion-select-option>
-              <ion-select-option value="fee_split">Fixed amounts: salon fee, finisher, main stylist – owner keeps the rest</ion-select-option>
-            </ion-select>
-          </ion-item>
-          @if (payRule === 'fee_split') {
+          <p class="small muted" style="margin-top:0">Staff are paid in shillings: salon fee, finisher, main stylist – the owner keeps the rest. Each service has its own amounts (Service menu); these are used when a service has none.</p>
+          @if (true) {
             <div class="form-grid">
               <ion-item lines="none" class="field"><ion-input label="Salon fee, taken first (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="pay.salon_fee" data-testid="pay-salon-fee"></ion-input></ion-item>
               <ion-item lines="none" class="field"><ion-input label="Finisher fee (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="pay.finisher_fee" data-testid="pay-finisher-fee"></ion-input></ion-item>
-              <ion-item lines="none" class="field"><ion-input label="Main stylist when a service has no amount (% of the rest)" labelPlacement="stacked" type="number" min="0" max="100" [(ngModel)]="pay.stylist_balance_pct" data-testid="pay-stylist-pct"></ion-input></ion-item>
+              <ion-item lines="none" class="field"><ion-input label="Main stylist (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="pay.stylist_fee" data-testid="pay-stylist-fee"></ion-input></ion-item>
             </div>
             <p class="small muted" data-testid="pay-example">Example – a {{ 1600 | ksh }} service with a finisher: salon fee {{ ex().salonFee | ksh }}, finisher {{ ex().finisherFee | ksh }},
               main stylist {{ ex().stylist | ksh }}, <strong>owner keeps {{ ex().ownerKeeps | ksh }}</strong>.
-              Set exact amounts per service in the Service menu (e.g. 1,800: salon 200, finisher 200, stylist 700 → owner 700).
-              No finisher: no finisher amount. A discount comes off the owner's part. Only you see these figures.</p>
-          } @else {
-            <div class="form-grid">
-              <ion-item lines="none" class="field"><ion-input label="Finisher's share of the commission (%)" labelPlacement="stacked" type="number" min="0" max="90" [(ngModel)]="v.finisher_share_pct" data-testid="finisher-share"></ion-input></ion-item>
-            </div>
-            <p class="small muted">Staff get the commission % set on each service; the salon keeps the rest.</p>
+              No finisher: no finisher amount. Two stylists share the stylist amount equally (or type each one's amount at checkout). Only you see these figures.</p>
           }
         </div>
         <div class="card" style="margin-top:12px">
@@ -112,17 +101,16 @@ export class SettingsPage implements ViewWillEnter {
   /** the form shows only once the saved values are loaded, so nothing typed is overwritten */
   readonly ready = signal(false);
   readonly saving = signal(false);
-  v = { deposit_min: 500, late_minutes: 20, max_discount_pct: 10, kids_max_age: 12, finisher_share_pct: 20 };
+  v = { deposit_min: 500, late_minutes: 20, max_discount_pct: 10, kids_max_age: 12 };
   hours: Hours = { mon_sat: { open: '08:00', close: '20:00' }, sun: { open: '12:00', close: '20:00' } };
   online = { on: true, lead: 60, days: 30, duration: 120, max_open: 3, phone: '', location: '' };
   mpesa = { method: 'mpesa_paybill', name: 'DANTESRAS BEAUTY HUB' };
-  payRule: 'percent' | 'fee_split' = 'percent';
-  pay = { salon_fee: 200, finisher_fee: 250, stylist_balance_pct: 50 };
+  pay = { salon_fee: 200, finisher_fee: 250, stylist_fee: 0 };
   /** the 1,600 example under the fee-split fields */
   ex() {
     const p = this.pay;
     return feeSplit([{ service_id: null, qty: 1, unit_price: 1600 }], [],
-      { salonFee: Number(p.salon_fee || 0), finisherFee: Number(p.finisher_fee || 0), stylistPct: Number(p.stylist_balance_pct || 0) }, 1, true);
+      { salonFee: Number(p.salon_fee || 0), finisherFee: Number(p.finisher_fee || 0), stylistFee: Number(p.stylist_fee || 0) }, 1, true);
   }
 
   async ionViewWillEnter() {
@@ -138,16 +126,12 @@ export class SettingsPage implements ViewWillEnter {
       phone: s('salon_phone', ''), location: s('salon_location', 'Karuguru junction, Kamakis, Ruiru'),
     };
     this.mpesa = { method: s('mpesa_stk_method', 'mpesa_paybill'), name: s('business_name', 'DANTESRAS BEAUTY HUB') };
-    this.payRule = s<string>('pay_rule', 'percent') === 'fee_split' ? 'fee_split' : 'percent';
-    this.pay = { salon_fee: Number(s('salon_fee', 200)), finisher_fee: Number(s('finisher_fee', 250)), stylist_balance_pct: Number(s('stylist_balance_pct', 50)) };
+    this.pay = { salon_fee: Number(s('salon_fee', 200)), finisher_fee: Number(s('finisher_fee', 250)), stylist_fee: Number(s('stylist_fee', 0)) };
     this.ready.set(true);
   }
   async save() {
     const p = this.pay;
-    if (this.payRule === 'fee_split') {
-      if (!(Number(p.salon_fee) >= 0) || !(Number(p.finisher_fee) >= 0)) return this.ui.toast('Fees cannot be negative', 'danger');
-      if (!(Number(p.stylist_balance_pct) >= 0 && Number(p.stylist_balance_pct) <= 100)) return this.ui.toast("Stylist's share must be between 0 and 100%", 'danger');
-    }
+    if (!(Number(p.salon_fee) >= 0) || !(Number(p.finisher_fee) >= 0) || !(Number(p.stylist_fee) >= 0)) return this.ui.toast('Amounts cannot be negative', 'danger');
     this.saving.set(true);
     try {
       for (const [k, val] of Object.entries(this.v)) await this.data.saveSetting(k, Number(val));
@@ -157,10 +141,7 @@ export class SettingsPage implements ViewWillEnter {
         ['online_booking', !!o.on], ['online_lead_minutes', Number(o.lead)], ['online_days_ahead', Number(o.days)],
         ['online_duration_min', Number(o.duration)], ['online_max_open', Number(o.max_open)],
         ['salon_phone', (o.phone ?? '').trim()], ['salon_location', (o.location ?? '').trim()],
-        ['pay_rule', this.payRule],
-        ...(this.payRule === 'fee_split'
-          ? ([['salon_fee', Number(p.salon_fee)], ['finisher_fee', Number(p.finisher_fee)], ['stylist_balance_pct', Number(p.stylist_balance_pct)]] as [string, unknown][])
-          : []),
+        ['salon_fee', Number(p.salon_fee)], ['finisher_fee', Number(p.finisher_fee)], ['stylist_fee', Number(p.stylist_fee)],
         ['mpesa_stk_method', this.mpesa.method], ['business_name', (this.mpesa.name ?? '').trim() || 'DANTESRAS BEAUTY HUB'],
       ];
       for (const [k, val] of pairs) await this.data.saveSetting(k, val);

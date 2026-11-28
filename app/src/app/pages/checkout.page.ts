@@ -83,13 +83,8 @@ interface Share { staff_id: string; share_pct: number; }
                     @for (s of activeStaff(); track s.id) { <ion-select-option [value]="s.id">{{ s.name }}</ion-select-option> }
                   </ion-select>
                 </ion-item>
-                @if (shares().length > 1) {
-                  <p class="muted small">Joint work – {{ feeRule() ? 'stylists share the stylist part, finishers the finisher fee, in these proportions' : 'commission is split by these shares' }} (must total 100%).</p>
-                  @for (sh of shares(); track sh.staff_id) {
-                    <div class="row"><span style="flex:1">{{ staffName(sh.staff_id) }}</span>
-                      <ion-item lines="none" class="field" style="width:110px"><ion-input type="number" [(ngModel)]="sh.share_pct" aria-label="Share percent"></ion-input></ion-item><span>%</span></div>
-                  }
-                  @if (shareTotal() !== 100) { <p class="down small">Shares add up to {{ shareTotal() }}%</p> }
+                @if (mainIds().length > 1 || finisherIds().length > 1) {
+                  <p class="muted small" data-testid="joint-note">Joint work: the stylist amount is shared equally between the stylists{{ finisherIds().length > 1 ? ', the finisher amount between the finishers' : '' }}.</p>
                 }
                 @if (feeRule() && canChoose() && serviceLines().length) {
                   @let sp = split();
@@ -102,14 +97,16 @@ interface Share { staff_id: string; share_pct: number; }
                       <tr><td>Main stylist</td><td class="num" data-testid="split-stylist">{{ sp.stylist | ksh }}</td></tr>
                       <tr><td><strong>Owner keeps</strong></td><td class="num"><strong class="maroon" data-testid="split-owner">{{ sp.ownerKeeps | ksh }}</strong></td></tr>
                     </tbody></table>
+                    @if (!choice && (mainIds().length > 1 || finisherIds().length > 1)) {
+                      @for (pp of perPerson(); track pp.id) { <div class="row small"><span>{{ pp.name }}</span><span class="spacer"></span><span>{{ pp.amount | ksh }}</span></div> }
+                    }
                     @if (canChoose()) {
                       @if (choice) {
                         <div class="form-grid">
                           <ion-item lines="none" class="field"><ion-input label="Salon fee (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="choice.salon_fee" data-testid="choice-salon-fee"></ion-input></ion-item>
-                          @if (hasFinisher()) {
-                            <ion-item lines="none" class="field"><ion-input label="Finisher (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="choice.finisher_fee" data-testid="choice-finisher-fee"></ion-input></ion-item>
+                          @for (pp of crew(); track pp.id) {
+                            <ion-item lines="none" class="field"><ion-input [label]="pp.name + (pp.finisher ? ' – finisher' : ' – stylist') + ' (KSh)'" labelPlacement="stacked" type="number" min="0" [(ngModel)]="choice.people[pp.id]" [attr.data-testid]="'choice-person-' + pp.id"></ion-input></ion-item>
                           }
-                          <ion-item lines="none" class="field"><ion-input label="Main stylist (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="choice.stylist_amount" data-testid="choice-stylist"></ion-input></ion-item>
                         </div>
                         <ion-button size="small" fill="clear" (click)="choice = null" data-testid="choice-reset">Use the normal amounts</ion-button>
                       } @else {
@@ -124,7 +121,7 @@ interface Share { staff_id: string; share_pct: number; }
             <div>
               <div class="card">
                 <h3>Bill</h3>
-                <table class="t"><tbody>
+                <table class="t" data-testid="co-lines"><tbody>
                   @for (l of lines(); track $index) {
                     <tr><td>{{ l.name }} @if (l.qty > 1) { × {{ l.qty }} } @if (l.outside_id) { <span class="muted small" data-testid="outside-line">· bought outside</span> }</td><td class="num">{{ l.unit_price * l.qty | ksh }}</td>
                       <td class="num" style="width:40px"><ion-button fill="clear" size="small" color="medium" (click)="removeLine($index)" aria-label="Remove"><ion-icon slot="icon-only" name="trash-outline"></ion-icon></ion-button></td></tr>
@@ -323,26 +320,20 @@ export class CheckoutPage implements ViewWillEnter {
     const base = n ? Math.floor((100 / n) * 100) / 100 : 0;
     this.shares.set(ids.map((id, i) => ({ staff_id: id, share_pct: i === 0 ? Math.round((100 - base * (n - 1)) * 100) / 100 : base })));
   }
-  /** Main stylist(s) share the commission; a finisher gets the set finisher share (Settings, default 20%). */
+  /** Who did the work. Pay is in amounts (the database shares them equally, or uses the owner's amounts). */
   setCrew(mains: string[], finishers: string[]) {
     this.finisherIds.set(finishers);
-    if (!finishers.length || !mains.length) return this.even([...mains, ...finishers]);
-    const fPct = Math.min(90, Math.max(0, Number(this.data.setting('finisher_share_pct', 20))));
-    const each = Math.floor((fPct / finishers.length) * 100) / 100;
-    const mainTotal = Math.round((100 - each * finishers.length) * 100) / 100;
-    const m = Math.floor((mainTotal / mains.length) * 100) / 100;
-    this.shares.set([
-      ...mains.map((id, i) => ({ staff_id: id, share_pct: i === 0 ? Math.round((mainTotal - m * (mains.length - 1)) * 100) / 100 : m })),
-      ...finishers.map((id) => ({ staff_id: id, share_pct: each })),
-    ]);
+    this.even([...mains, ...finishers]);
+    if (this.choice) this.choice = { ...this.choice, people: Object.fromEntries(this.crew().map((p) => [p.id, this.choice!.people[p.id] ?? 0])) };
   }
   staffName(id: string) {
     const n = this.data.staff().find((s) => s.id === id)?.name ?? '';
     return this.finisherIds().includes(id) ? n + ' · finisher' : n;
   }
   // ----- staff pay: salon fee + finisher fee, then split the rest (Settings) -----
+  /** staff are always paid in amounts (KSh) */
   feeRule() {
-    return this.data.setting<string>('pay_rule', 'percent') === 'fee_split';
+    return true;
   }
   /** only the owner sees and sets the pay split */
   canChoose() {
@@ -356,16 +347,28 @@ export class CheckoutPage implements ViewWillEnter {
   }
   payDefaults(): PayDefaults {
     return { salonFee: Number(this.data.setting('salon_fee', 200)), finisherFee: Number(this.data.setting('finisher_fee', 250)),
-      stylistPct: Number(this.data.setting('stylist_balance_pct', 50)) };
+      stylistFee: Number(this.data.setting('stylist_fee', 0)) };
+  }
+  /** the stylists and finishers on this job */
+  crew() {
+    return [...this.mainIds().map((id) => ({ id, finisher: false })), ...this.finisherIds().map((id) => ({ id, finisher: true }))]
+      .map((p) => ({ ...p, name: this.data.staff().find((s) => s.id === p.id)?.name ?? '' }));
+  }
+  /** each person's amount: what the owner typed, or the group's amount shared equally */
+  perPerson() {
+    const sp = this.split();
+    const m = this.mainIds().length, f = this.finisherIds().length;
+    return this.crew().map((p) => ({ ...p, amount: this.choice ? Number(this.choice.people[p.id] ?? 0)
+      : Math.round((p.finisher ? (this.hasFinisher() ? sp.finisherFee : 0) / f : sp.stylist / m) * 100) / 100 }));
   }
   split() {
     const sub = this.subtotal();
     const factor = sub > 0 ? (sub - Number(this.discount || 0)) / sub : 0;
-    return feeSplit(this.serviceLines(), this.data.services(), this.payDefaults(), factor, this.hasFinisher(), this.choice);
+    return feeSplit(this.serviceLines(), this.data.services(), this.payDefaults(), factor, this.hasFinisher(), this.choice, this.mainIds(), this.finisherIds());
   }
   choose() {
     const sp = this.split();
-    this.choice = { salon_fee: sp.salonFee, finisher_fee: this.hasFinisher() ? sp.finisherFee : this.payDefaults().finisherFee, stylist_amount: sp.stylist };
+    this.choice = { salon_fee: sp.salonFee, people: Object.fromEntries(this.perPerson().map((p) => [p.id, p.amount])) };
   }
   addPayment() {
     this.payments.update((p) => [...p, { method: 'mpesa_till', amount: null }]);
@@ -388,11 +391,10 @@ export class CheckoutPage implements ViewWillEnter {
     if (!this.who.client && !this.who.guestName.trim()) return this.ui.toast('Choose a client or enter a guest name', 'danger');
     if (!this.lines().length) return this.ui.toast('Add at least one service or product', 'danger');
     if (!this.shares().length) return this.ui.toast('Choose the stylist(s) who did the work', 'danger');
-    if (this.shareTotal() !== 100) return this.ui.toast('Stylist shares must add up to 100%', 'danger');
     if (this.feeRule() && this.choice) {
       const c = this.choice, sp = this.split();
-      if (!(Number(c.salon_fee) >= 0) || !(Number(c.finisher_fee) >= 0) || !(Number(c.stylist_amount) >= 0)) return this.ui.toast('Amounts cannot be negative', 'danger');
-      if (Number(c.salon_fee) + (this.hasFinisher() ? Number(c.finisher_fee) : 0) + Number(c.stylist_amount) > sp.services + 0.001) return this.ui.toast('Salon fee, finisher and stylist are more than the services', 'danger');
+      if (!(Number(c.salon_fee) >= 0) || Object.values(c.people).some((v) => !(Number(v ?? 0) >= 0))) return this.ui.toast('Amounts cannot be negative', 'danger');
+      if (sp.salonFee + sp.finisherFee + sp.stylist > sp.services + 0.001) return this.ui.toast('Salon fee, finisher and stylist are more than the services', 'danger');
     }
     if (Number(this.discount) > 0 && !this.discountReason.trim()) return this.ui.toast('Give a reason for the discount', 'danger');
     if (this.discountTooHigh() && !this.ownerApproved) return this.ui.toast(`Discounts above ${this.maxDiscount()}% need the owner`, 'danger');
@@ -419,7 +421,7 @@ export class CheckoutPage implements ViewWillEnter {
         items: this.lines(),
         staff: this.shares().map((s) => ({ staff_id: s.staff_id, share_pct: Number(s.share_pct), part: this.finisherIds().includes(s.staff_id) ? 'finisher' : 'main' })),
         pay: this.feeRule() && this.choice
-          ? { salon_fee: Number(this.choice.salon_fee), finisher_fee: Number(this.choice.finisher_fee), stylist_amount: Number(this.choice.stylist_amount) }
+          ? { salon_fee: Number(this.choice.salon_fee), people: Object.fromEntries(this.crew().map((p) => [p.id, Number(this.choice!.people[p.id] ?? 0)])) }
           : null,
         payments: this.payments().filter((p) => Number(p.amount) > 0).map((p) => ({
           method: p.method, amount: Number(p.amount), mpesa_ref: p.mpesa_ref ?? null,

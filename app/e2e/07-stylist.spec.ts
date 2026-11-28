@@ -39,7 +39,7 @@ test('stylist takes a walk-in from the queue and checks the client out', async (
   await mine.getByRole('button', { name: 'Checkout' }).click();
   await expect(page).toHaveURL(/checkout\?booking=/);
   await expect(view(page).getByText('Booking checkout')).toBeVisible();
-  await expect(view(page).locator('table.t').first()).toContainText('Gel');
+  await expect(view(page).getByTestId('co-lines')).toContainText('Gel');
 });
 
 test('my calendar and my earnings show my own numbers', async ({ page, request }) => {
