@@ -21,7 +21,7 @@ test('a staff-only category (Finishers): staff see it, clients do not and cannot
   const name = `Finishers ${Date.now().toString(36).slice(-5)}`;
   const [cat] = await (await api.post(`${API}/service_categories`, { headers: H, data: { name, client_type: 'any', sort: 200, staff_only: true } })).json();
   const svc = `Finish ends ${Date.now().toString(36).slice(-4)}`;
-  const [s] = await (await api.post(`${API}/services`, { headers: H, data: { category_id: cat.id, name: svc, price: 300 } })).json();
+  const [s] = await (await api.post(`${API}/services?select=id`, { headers: H, data: { category_id: cat.id, name: svc, price: 300 } })).json();
 
   // not signed in / a client: nothing
   expect(await (await request.get(`${API}/services?select=id&id=eq.${s.id}`)).json()).toEqual([]);

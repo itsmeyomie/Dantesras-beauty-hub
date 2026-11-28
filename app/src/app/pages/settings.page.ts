@@ -39,19 +39,19 @@ interface Hours { mon_sat: { open: string; close: string }; sun: { open: string;
           <ion-item lines="none" class="field">
             <ion-select label="How staff are paid for services" labelPlacement="stacked" interface="popover" [(ngModel)]="payRule" data-testid="pay-rule">
               <ion-select-option value="percent">Commission % per service</ion-select-option>
-              <ion-select-option value="fee_split">Salon fee + finisher fee, then split the rest</ion-select-option>
+              <ion-select-option value="fee_split">Fixed amounts: salon fee, finisher, main stylist – owner keeps the rest</ion-select-option>
             </ion-select>
           </ion-item>
           @if (payRule === 'fee_split') {
             <div class="form-grid">
               <ion-item lines="none" class="field"><ion-input label="Salon fee, taken first (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="pay.salon_fee" data-testid="pay-salon-fee"></ion-input></ion-item>
               <ion-item lines="none" class="field"><ion-input label="Finisher fee (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="pay.finisher_fee" data-testid="pay-finisher-fee"></ion-input></ion-item>
-              <ion-item lines="none" class="field"><ion-input label="Stylist's share of the rest (%)" labelPlacement="stacked" type="number" min="0" max="100" [(ngModel)]="pay.stylist_balance_pct" data-testid="pay-stylist-pct"></ion-input></ion-item>
+              <ion-item lines="none" class="field"><ion-input label="Main stylist when a service has no amount (% of the rest)" labelPlacement="stacked" type="number" min="0" max="100" [(ngModel)]="pay.stylist_balance_pct" data-testid="pay-stylist-pct"></ion-input></ion-item>
             </div>
             <p class="small muted" data-testid="pay-example">Example – a {{ 1600 | ksh }} service with a finisher: salon fee {{ ex().salonFee | ksh }}, finisher {{ ex().finisherFee | ksh }},
-              stylist {{ ex().stylist | ksh }}, <strong>salon keeps {{ ex().salonKeeps | ksh }}</strong>.
-              No finisher: the finisher fee is not taken off. A discount comes off the rest. Products keep their own commission %.
-              A service can have its own amounts (Services → edit).</p>
+              main stylist {{ ex().stylist | ksh }}, <strong>owner keeps {{ ex().ownerKeeps | ksh }}</strong>.
+              Set exact amounts per service in the Service menu (e.g. 1,800: salon 200, finisher 200, stylist 700 → owner 700).
+              No finisher: no finisher amount. A discount comes off the owner's part. Only you see these figures.</p>
           } @else {
             <div class="form-grid">
               <ion-item lines="none" class="field"><ion-input label="Finisher's share of the commission (%)" labelPlacement="stacked" type="number" min="0" max="90" [(ngModel)]="v.finisher_share_pct" data-testid="finisher-share"></ion-input></ion-item>

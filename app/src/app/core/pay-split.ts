@@ -1,9 +1,14 @@
 import { Service } from './models';
 
-/** Staff pay rule "salon fee + finisher fee, then split the rest" (same sums as apply_fee_split in the database). */
+/**
+ * Staff pay rule "fixed amounts": per service a salon fee, a finisher amount and a main-stylist amount (KSh);
+ * the owner keeps the rest. A service without a stylist amount gives the stylist a % of what is left.
+ * Same sums as apply_fee_split in the database. Only the owner sees these figures.
+ */
 export interface PayDefaults { salonFee: number; finisherFee: number; stylistPct: number; }
-export interface PaySplit { services: number; salonFee: number; finisherFee: number; stylist: number; salonKeeps: number; }
-export interface PayChoice { salon_fee: number; finisher_fee: number; stylist_pct: number; }
+export interface PaySplit { services: number; salonFee: number; finisherFee: number; stylist: number; ownerKeeps: number; salonKeeps: number; }
+/** amounts the owner sets for one job */
+export interface PayChoice { salon_fee: number; finisher_fee: number; stylist_amount: number; }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -18,14 +23,15 @@ export function feeSplit(
     const n = l.unit_price * l.qty * factor;
     const s = Math.min((sv?.salon_fee ?? d.salonFee) * l.qty, n);
     const f = hasFinisher ? Math.min((sv?.finisher_fee ?? d.finisherFee) * l.qty, n - s) : 0;
-    net += n; salon += s; fin += f;
-    sty += ((n - s - f) * (sv?.stylist_pct ?? d.stylistPct)) / 100;
+    const t = sv?.stylist_fee != null ? Math.min(Number(sv.stylist_fee) * l.qty, n - s - f)
+      : ((n - s - f) * (sv?.stylist_pct ?? d.stylistPct)) / 100;
+    net += n; salon += s; fin += f; sty += t;
   }
   if (choice) {
     salon = Number(choice.salon_fee);
     fin = hasFinisher ? Number(choice.finisher_fee) : 0;
-    sty = ((net - salon - fin) * Number(choice.stylist_pct)) / 100;
+    sty = Number(choice.stylist_amount);
   }
   sty = r2(sty); fin = r2(fin); salon = r2(salon); net = r2(net);
-  return { services: net, salonFee: salon, finisherFee: fin, stylist: sty, salonKeeps: r2(net - fin - sty) };
+  return { services: net, salonFee: salon, finisherFee: fin, stylist: sty, ownerKeeps: r2(net - salon - fin - sty), salonKeeps: r2(net - fin - sty) };
 }

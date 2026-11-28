@@ -20,6 +20,9 @@ const staffFetch: typeof fetch = (input, init = {}) => {
 const STAFF_COLUMNS = 'id, name, phone, roles, basic_salary, payout_schedule, active, created_at, email, photo, specialty, account_status';
 
 /** Single gateway to Supabase. Every page talks to the database through here. */
+/** service columns everyone may read (the pay amounts are the owner's: service_pay) */
+const SERVICE_COLUMNS = 'id, category_id, name, price, price_type, max_price, commission_pct, active, sort, created_at';
+
 @Injectable({ providedIn: 'root' })
 export class DataService {
   readonly configured = !environment.supabaseUrl.includes('YOUR-PROJECT') && !environment.supabaseAnonKey.includes('YOUR-');
@@ -156,7 +159,7 @@ export class DataService {
     const [staff, cats, services, products, courses, settings, roles] = await Promise.all([
       this.run<Staff[]>(this.db.from('staff').select(STAFF_COLUMNS).order('name')),
       this.run<Category[]>(this.db.from('service_categories').select('*').order('sort')),
-      this.run<Service[]>(this.db.from('services').select('*, service_variants(*)').order('sort').order('name')),
+      this.run<Service[]>(this.db.from('services').select(SERVICE_COLUMNS + ', service_variants(*)').order('sort').order('name')),
       this.run<Product[]>(this.db.from('products').select('*').order('name')),
       this.run<Course[]>(this.db.from('courses').select('*').order('name')),
       this.run<{ key: string; value: unknown }[]>(this.db.from('settings').select('*')),
@@ -168,8 +171,17 @@ export class DataService {
     this.categories.set(cats);
     this.services.set(services);
     this.products.set(products);
+    if (this.owner()) await this.loadPay();
     this.courses.set(courses);
     this.settings.set(Object.fromEntries(settings.map((s) => [s.key, s.value])));
+  }
+
+  /** Owner only: the pay amounts of each service (nobody else can read them). */
+  async loadPay() {
+    try {
+      const pay = await this.rpc<Record<string, Partial<Service>>>('service_pay', {});
+      this.services.update((list) => list.map((s) => ({ ...s, ...(pay[s.id] ?? {}) })));
+    } catch { /* older database: no pay amounts yet */ }
   }
 
   setting<T>(key: string, fallback: T): T {
@@ -263,9 +275,9 @@ export class DataService {
   // ---------- services & products ----------
   async saveService(s: Partial<Service>, variants: Partial<Variant>[]) {
     const { service_variants: _v, ...row } = s;
-    const saved = await this.run<Service>(
-      s.id ? this.db.from('services').update(row).eq('id', s.id).select().single()
-           : this.db.from('services').insert(row).select().single(),
+    const saved = await this.run<{ id: string }>(
+      s.id ? this.db.from('services').update(row).eq('id', s.id).select('id').single()
+           : this.db.from('services').insert(row).select('id').single(),
     );
     const keep = variants.filter((v) => v.id).map((v) => v.id!);
     const existing = this.services().find((x) => x.id === saved.id)?.service_variants ?? [];

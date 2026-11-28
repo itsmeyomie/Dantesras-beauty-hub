@@ -47,7 +47,6 @@ test('home service: salon brings the hair – shown to the stylist, on her bill,
   await fill(m, 'Time', '13:00');
   await fill(m, 'Client location / address', 'Membley, House 4');
   await fill(m, 'Notes', note);
-  await choose(page, m, 'Stylist(s)', 'Wanjiku Kamau');
   await m.locator('ion-button').filter({ hasText: 'Save booking' }).click();
   await toast(page, 'Choose who brings the hair');
 
@@ -65,6 +64,7 @@ test('home service: salon brings the hair – shown to the stylist, on her bill,
   const b = (await (await api.get(`${API}/bookings?select=id,hair_source,hair_items&notes=eq.${note}`)).json())[0];
   expect(b.hair_source).toBe('salon');
   await api.patch(`${API}/bookings?id=eq.${b.id}`, { data: { status: 'in_progress', scheduled_at: new Date().toISOString(), started_at: new Date().toISOString() } });
+  await api.post(`${API}/booking_staff`, { data: { booking_id: b.id, staff_id: await wanjiku(request), part: 'main' } }); // the stylist who served her
   await page.goto(`/checkout?booking=${b.id}`);
   const v = view(page);
   await expect(v.locator('table.t').first()).toContainText('Kanekalon braid hair × 2');

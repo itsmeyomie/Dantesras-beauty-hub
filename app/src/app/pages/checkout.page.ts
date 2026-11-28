@@ -91,7 +91,7 @@ interface Share { staff_id: string; share_pct: number; }
                   }
                   @if (shareTotal() !== 100) { <p class="down small">Shares add up to {{ shareTotal() }}%</p> }
                 }
-                @if (feeRule() && serviceLines().length) {
+                @if (feeRule() && canChoose() && serviceLines().length) {
                   @let sp = split();
                   <div class="pay-split" data-testid="pay-split">
                     <div class="section-title">Pay for this job</div>
@@ -99,17 +99,17 @@ interface Share { staff_id: string; share_pct: number; }
                       <tr><td>Services{{ discount > 0 ? ' (after discount)' : '' }}</td><td class="num">{{ sp.services | ksh }}</td></tr>
                       <tr><td>Salon fee</td><td class="num" data-testid="split-salon-fee">{{ sp.salonFee | ksh }}</td></tr>
                       @if (hasFinisher()) { <tr><td>Finisher</td><td class="num" data-testid="split-finisher">{{ sp.finisherFee | ksh }}</td></tr> }
-                      <tr><td>Stylist</td><td class="num" data-testid="split-stylist">{{ sp.stylist | ksh }}</td></tr>
-                      <tr><td><strong>Salon keeps</strong></td><td class="num"><strong class="maroon" data-testid="split-salon">{{ sp.salonKeeps | ksh }}</strong></td></tr>
+                      <tr><td>Main stylist</td><td class="num" data-testid="split-stylist">{{ sp.stylist | ksh }}</td></tr>
+                      <tr><td><strong>Owner keeps</strong></td><td class="num"><strong class="maroon" data-testid="split-owner">{{ sp.ownerKeeps | ksh }}</strong></td></tr>
                     </tbody></table>
                     @if (canChoose()) {
                       @if (choice) {
                         <div class="form-grid">
                           <ion-item lines="none" class="field"><ion-input label="Salon fee (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="choice.salon_fee" data-testid="choice-salon-fee"></ion-input></ion-item>
                           @if (hasFinisher()) {
-                            <ion-item lines="none" class="field"><ion-input label="Finisher fee (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="choice.finisher_fee" data-testid="choice-finisher-fee"></ion-input></ion-item>
+                            <ion-item lines="none" class="field"><ion-input label="Finisher (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="choice.finisher_fee" data-testid="choice-finisher-fee"></ion-input></ion-item>
                           }
-                          <ion-item lines="none" class="field"><ion-input label="Stylist's share of the rest (%)" labelPlacement="stacked" type="number" min="0" max="100" [(ngModel)]="choice.stylist_pct" data-testid="choice-stylist-pct"></ion-input></ion-item>
+                          <ion-item lines="none" class="field"><ion-input label="Main stylist (KSh)" labelPlacement="stacked" type="number" min="0" [(ngModel)]="choice.stylist_amount" data-testid="choice-stylist"></ion-input></ion-item>
                         </div>
                         <ion-button size="small" fill="clear" (click)="choice = null" data-testid="choice-reset">Use the normal amounts</ion-button>
                       } @else {
@@ -344,8 +344,9 @@ export class CheckoutPage implements ViewWillEnter {
   feeRule() {
     return this.data.setting<string>('pay_rule', 'percent') === 'fee_split';
   }
+  /** only the owner sees and sets the pay split */
   canChoose() {
-    return this.auth.can('team');
+    return this.data.owner();
   }
   serviceLines() {
     return this.lines().filter((l) => l.kind === 'service');
@@ -364,7 +365,7 @@ export class CheckoutPage implements ViewWillEnter {
   }
   choose() {
     const sp = this.split();
-    this.choice = { salon_fee: sp.salonFee, finisher_fee: this.hasFinisher() ? sp.finisherFee : this.payDefaults().finisherFee, stylist_pct: this.payDefaults().stylistPct };
+    this.choice = { salon_fee: sp.salonFee, finisher_fee: this.hasFinisher() ? sp.finisherFee : this.payDefaults().finisherFee, stylist_amount: sp.stylist };
   }
   addPayment() {
     this.payments.update((p) => [...p, { method: 'mpesa_till', amount: null }]);
@@ -390,9 +391,8 @@ export class CheckoutPage implements ViewWillEnter {
     if (this.shareTotal() !== 100) return this.ui.toast('Stylist shares must add up to 100%', 'danger');
     if (this.feeRule() && this.choice) {
       const c = this.choice, sp = this.split();
-      if (!(Number(c.salon_fee) >= 0) || !(Number(c.finisher_fee) >= 0)) return this.ui.toast('Fees cannot be negative', 'danger');
-      if (Number(c.salon_fee) + (this.hasFinisher() ? Number(c.finisher_fee) : 0) > sp.services + 0.001) return this.ui.toast('Salon fee and finisher fee are more than the services', 'danger');
-      if (!(Number(c.stylist_pct) >= 0 && Number(c.stylist_pct) <= 100)) return this.ui.toast("Stylist's share must be between 0 and 100%", 'danger');
+      if (!(Number(c.salon_fee) >= 0) || !(Number(c.finisher_fee) >= 0) || !(Number(c.stylist_amount) >= 0)) return this.ui.toast('Amounts cannot be negative', 'danger');
+      if (Number(c.salon_fee) + (this.hasFinisher() ? Number(c.finisher_fee) : 0) + Number(c.stylist_amount) > sp.services + 0.001) return this.ui.toast('Salon fee, finisher and stylist are more than the services', 'danger');
     }
     if (Number(this.discount) > 0 && !this.discountReason.trim()) return this.ui.toast('Give a reason for the discount', 'danger');
     if (this.discountTooHigh() && !this.ownerApproved) return this.ui.toast(`Discounts above ${this.maxDiscount()}% need the owner`, 'danger');
@@ -419,7 +419,7 @@ export class CheckoutPage implements ViewWillEnter {
         items: this.lines(),
         staff: this.shares().map((s) => ({ staff_id: s.staff_id, share_pct: Number(s.share_pct), part: this.finisherIds().includes(s.staff_id) ? 'finisher' : 'main' })),
         pay: this.feeRule() && this.choice
-          ? { salon_fee: Number(this.choice.salon_fee), finisher_fee: Number(this.choice.finisher_fee), stylist_pct: Number(this.choice.stylist_pct) }
+          ? { salon_fee: Number(this.choice.salon_fee), finisher_fee: Number(this.choice.finisher_fee), stylist_amount: Number(this.choice.stylist_amount) }
           : null,
         payments: this.payments().filter((p) => Number(p.amount) > 0).map((p) => ({
           method: p.method, amount: Number(p.amount), mpesa_ref: p.mpesa_ref ?? null,

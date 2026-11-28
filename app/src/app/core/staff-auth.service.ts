@@ -55,7 +55,11 @@ export class StaffAuthService {
   /** only the owner sees client numbers */
   private readonly ownerSync = effect(() => {
     const own = !!this.me()?.roles.includes('owner');
-    if (own !== this.data.owner()) { this.data.owner.set(own); this.data.contacts.set({}); }
+    if (own !== this.data.owner()) {
+      this.data.owner.set(own);
+      this.data.contacts.set({});
+      if (own) void this.data.loadReference().catch(() => undefined); // pay amounts and pay settings
+    }
   });
 
   /** Main role: owner > manager > receptionist > stylist > any other role */

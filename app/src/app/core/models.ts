@@ -36,7 +36,8 @@ export interface Service {
   id: string; category_id: string; name: string; price: number; price_type: 'fixed' | 'range' | 'from';
   max_price: number | null; commission_pct: number; active: boolean; sort: number;
   /** fee-split pay rule: blank = the default from Settings */
-  salon_fee?: number | null; finisher_fee?: number | null; stylist_pct?: number | null;
+  /** staff pay (owner only): salon fee, finisher amount, main-stylist amount (KSh) or % of the rest */
+  salon_fee?: number | null; finisher_fee?: number | null; stylist_pct?: number | null; stylist_fee?: number | null;
   service_variants?: Variant[];
 }
 export interface Product {

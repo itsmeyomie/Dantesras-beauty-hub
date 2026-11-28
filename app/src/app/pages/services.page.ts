@@ -10,6 +10,7 @@ import { DataService } from '../core/data.service';
 import { Category, Service, Variant } from '../core/models';
 import { NotConfiguredComponent } from '../core/not-configured.component';
 import { KshPipe, Ui } from '../core/ui';
+import { feeSplit } from '../core/pay-split';
 
 @Component({
   selector: 'app-services',
@@ -82,13 +83,15 @@ import { KshPipe, Ui } from '../core/ui';
                 <ion-item lines="none" class="field"><ion-input label="Commission % (0–50)" labelPlacement="stacked" type="number" min="0" max="50" [(ngModel)]="f.commission_pct"></ion-input></ion-item>
                 <ion-item lines="none" class="field"><ion-toggle [(ngModel)]="f.active">Active on the menu</ion-toggle></ion-item>
               </div>
-              @if (feeRule()) {
-                <div class="section-title">Staff pay for this service (leave blank to use Settings)</div>
+              @if (feeRule() && data.owner()) {
+                <div class="section-title">Staff pay for this service – only you see this (blank = Settings)</div>
                 <div class="form-grid">
                   <ion-item lines="none" class="field"><ion-input label="Salon fee (KSh)" labelPlacement="stacked" type="number" min="0" [placeholder]="'Default ' + data.setting('salon_fee', 200)" [(ngModel)]="f.salon_fee" data-testid="svc-salon-fee"></ion-input></ion-item>
-                  <ion-item lines="none" class="field"><ion-input label="Finisher fee (KSh)" labelPlacement="stacked" type="number" min="0" [placeholder]="'Default ' + data.setting('finisher_fee', 250)" [(ngModel)]="f.finisher_fee" data-testid="svc-finisher-fee"></ion-input></ion-item>
-                  <ion-item lines="none" class="field"><ion-input label="Stylist's share of the rest (%)" labelPlacement="stacked" type="number" min="0" max="100" [placeholder]="'Default ' + data.setting('stylist_balance_pct', 50)" [(ngModel)]="f.stylist_pct" data-testid="svc-stylist-pct"></ion-input></ion-item>
+                  <ion-item lines="none" class="field"><ion-input label="Finisher (KSh)" labelPlacement="stacked" type="number" min="0" [placeholder]="'Default ' + data.setting('finisher_fee', 250)" [(ngModel)]="f.finisher_fee" data-testid="svc-finisher-fee"></ion-input></ion-item>
+                  <ion-item lines="none" class="field"><ion-input label="Main stylist (KSh)" labelPlacement="stacked" type="number" min="0" [placeholder]="'Default ' + data.setting('stylist_balance_pct', 50) + '% of the rest'" [(ngModel)]="f.stylist_fee" data-testid="svc-stylist-fee"></ion-input></ion-item>
                 </div>
+                @let px = payExample(f);
+                <p class="small muted" data-testid="svc-pay-example">At {{ px.services | ksh }} with a finisher: salon fee {{ px.salonFee | ksh }}, finisher {{ px.finisherFee | ksh }}, main stylist {{ px.stylist | ksh }}, <strong>owner keeps {{ px.ownerKeeps | ksh }}</strong>.</p>
               }
               <div class="section-title">Variants (e.g. Extended, Arted, Goddess)</div>
               @for (v of variants; track $index) {
@@ -143,6 +146,13 @@ export class ServicesPage {
     return k(s.price);
   }
 
+  /** the pay of one job at this service's price (owner) */
+  payExample(f: Partial<Service>) {
+    const amt = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v));
+    return feeSplit([{ service_id: 'x', qty: 1, unit_price: Number(f.price) || 0 }],
+      [{ ...f, id: 'x', salon_fee: amt(f.salon_fee), finisher_fee: amt(f.finisher_fee), stylist_fee: amt(f.stylist_fee), stylist_pct: null } as Service],
+      { salonFee: Number(this.data.setting('salon_fee', 200)), finisherFee: Number(this.data.setting('finisher_fee', 250)), stylistPct: Number(this.data.setting('stylist_balance_pct', 50)) }, 1, true);
+  }
   /** the owner pays staff with "salon fee + finisher fee, then split" (Settings) */
   feeRule() {
     return this.data.setting<string>('pay_rule', 'percent') === 'fee_split';
@@ -161,13 +171,14 @@ export class ServicesPage {
     if (this.variants.some((v) => !v.name?.trim())) return this.ui.toast('Every variant needs a name', 'danger');
     // fee-split amounts: blank = the default from Settings
     const amt = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v));
-    const fees = this.feeRule() ? { salon_fee: amt(f.salon_fee), finisher_fee: amt(f.finisher_fee), stylist_pct: amt(f.stylist_pct) } : {};
+    const fees = this.feeRule() && this.data.owner() ? { salon_fee: amt(f.salon_fee), finisher_fee: amt(f.finisher_fee), stylist_fee: amt(f.stylist_fee) } : {};
     if (Object.values(fees).some((v) => v !== null && !(v >= 0))) return this.ui.toast('Pay amounts cannot be negative', 'danger');
-    if ((fees.stylist_pct ?? 0) > 100) return this.ui.toast("Stylist's share must be 100% or less", 'danger');
+    if (fees.salon_fee != null && (fees.salon_fee ?? 0) + (fees.finisher_fee ?? 0) + (fees.stylist_fee ?? 0) > Number(f.price)) return this.ui.toast('Salon fee, finisher and stylist are more than the price', 'danger');
+    const { salon_fee: _a, finisher_fee: _b, stylist_fee: _c, stylist_pct: _d, ...plain } = f;
     this.busy.set(true);
     try {
       await this.data.saveService(
-        { ...f, ...fees, name: f.name.trim(), price: Number(f.price), commission_pct: pct, max_price: f.price_type === 'range' ? Number(f.max_price) : null },
+        { ...plain, ...fees, name: f.name.trim(), price: Number(f.price), commission_pct: pct, max_price: f.price_type === 'range' ? Number(f.max_price) : null },
         this.variants.map((v) => ({ ...v, price: Number(v.price) })),
       );
       this.ui.toast('Service saved');
